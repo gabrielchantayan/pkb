@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  frontend:
+    build: ./packages/frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - BACKEND_URL=http://backend:4000
+    depends_on:
+      - backend
+
+  backend:
+    build: ./packages/backend
+    ports:
+      - "4000:4000"
+    environment:
+      - DATABASE_URL=postgres://pkb:pkb@db:5432/pkb
+      - NODE_ENV=development
+      - PORT=4000
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - attachments:/data/attachments
+
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      - POSTGRES_USER=pkb
+      - POSTGRES_PASSWORD=pkb
+      - POSTGRES_DB=pkb
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pkb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
+  attachments:
