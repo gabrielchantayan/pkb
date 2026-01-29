@@ -529,3 +529,165 @@ function normalize_identifier(type: string, value: string): string {
   }
   return value.trim();
 }
+
+// Batch import contacts from daemon (Apple Contacts sync)
+export interface ContactImportInput {
+  source_id: string;
+  display_name: string;
+  emails?: string[];
+  phones?: string[];
+  facts?: Array<{ type: string; value: string }>;
+  note?: string;
+  photo_data?: string; // base64
+}
+
+export interface ContactsImportResult {
+  created: number;
+  updated: number;
+  merged: number;
+  errors: Array<{ index: number; error: string }>;
+}
+
+export async function batch_import_contacts(
+  contacts: ContactImportInput[]
+): Promise<ContactsImportResult> {
+  const pool = get_pool();
+  const client = await pool.connect();
+
+  const result: ContactsImportResult = {
+    created: 0,
+    updated: 0,
+    merged: 0,
+    errors: [],
+  };
+
+  try {
+    await client.query('BEGIN');
+
+    for (let i = 0; i < contacts.length; i++) {
+      try {
+        const contact = contacts[i];
+        const all_identifiers: Array<{ type: string; value: string }> = [];
+
+        // Collect all identifiers
+        for (const email of contact.emails ?? []) {
+          all_identifiers.push({ type: 'email', value: email });
+        }
+        for (const phone of contact.phones ?? []) {
+          all_identifiers.push({ type: 'phone', value: phone });
+        }
+
+        // Try to find existing contact by any identifier
+        let existing_contact_id: string | null = null;
+        for (const id of all_identifiers) {
+          const normalized = normalize_identifier(id.type, id.value);
+          const found = await client.query<{ contact_id: string }>(
+            `SELECT ci.contact_id
+             FROM contact_identifiers ci
+             JOIN contacts c ON c.id = ci.contact_id
+             WHERE ci.type = $1 AND ci.value = $2 AND c.deleted_at IS NULL`,
+            [id.type, normalized]
+          );
+          if (found.rows[0]) {
+            existing_contact_id = found.rows[0].contact_id;
+            break;
+          }
+        }
+
+        if (existing_contact_id) {
+          // Update existing contact
+          await client.query(
+            `UPDATE contacts SET updated_at = NOW() WHERE id = $1`,
+            [existing_contact_id]
+          );
+
+          // Add any new identifiers
+          for (const id of all_identifiers) {
+            const normalized = normalize_identifier(id.type, id.value);
+            await client.query(
+              `INSERT INTO contact_identifiers (contact_id, type, value, source)
+               VALUES ($1, $2, $3, 'addressbook')
+               ON CONFLICT (type, value) DO NOTHING`,
+              [existing_contact_id, id.type, normalized]
+            );
+          }
+
+          // Add any new facts
+          for (const fact of contact.facts ?? []) {
+            // Check if fact already exists
+            const existing_fact = await client.query(
+              `SELECT id FROM facts
+               WHERE contact_id = $1 AND fact_type = $2 AND deleted_at IS NULL`,
+              [existing_contact_id, fact.type]
+            );
+
+            if (existing_fact.rows.length === 0) {
+              await client.query(
+                `INSERT INTO facts (contact_id, category, fact_type, value, source, confidence)
+                 VALUES ($1, 'basic_info', $2, $3, 'addressbook', 0.9)`,
+                [existing_contact_id, fact.type, fact.value]
+              );
+            }
+          }
+
+          result.updated++;
+        } else {
+          // Create new contact
+          const new_contact = await client.query<{ id: string }>(
+            `INSERT INTO contacts (display_name)
+             VALUES ($1)
+             RETURNING id`,
+            [contact.display_name]
+          );
+
+          const contact_id = new_contact.rows[0].id;
+
+          // Add identifiers
+          for (const id of all_identifiers) {
+            const normalized = normalize_identifier(id.type, id.value);
+            await client.query(
+              `INSERT INTO contact_identifiers (contact_id, type, value, source)
+               VALUES ($1, $2, $3, 'addressbook')
+               ON CONFLICT (type, value) DO NOTHING`,
+              [contact_id, id.type, normalized]
+            );
+          }
+
+          // Add facts
+          for (const fact of contact.facts ?? []) {
+            await client.query(
+              `INSERT INTO facts (contact_id, category, fact_type, value, source, confidence)
+               VALUES ($1, 'basic_info', $2, $3, 'addressbook', 0.9)`,
+              [contact_id, fact.type, fact.value]
+            );
+          }
+
+          // Add note if provided
+          if (contact.note) {
+            await client.query(
+              `INSERT INTO notes (contact_id, content, source)
+               VALUES ($1, $2, 'addressbook')`,
+              [contact_id, contact.note]
+            );
+          }
+
+          result.created++;
+        }
+      } catch (err) {
+        result.errors.push({
+          index: i,
+          error: err instanceof Error ? err.message : 'Unknown error',
+        });
+      }
+    }
+
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+
+  return result;
+}

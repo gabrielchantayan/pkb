@@ -3,6 +3,7 @@ import { createReadStream } from 'fs';
 import { stat } from 'fs/promises';
 import { require_api_key } from '../middleware/auth.js';
 import { batch_upsert } from '../services/communications.js';
+import { batch_import_contacts } from '../services/contacts.js';
 import {
   get_attachment,
   get_attachment_full_path,
@@ -10,6 +11,7 @@ import {
 } from '../services/attachments.js';
 import { query } from '../db/index.js';
 import { batch_upsert_schema, uuid_param_schema } from '../schemas/communications.js';
+import { contacts_import_batch_schema } from '../schemas/sync.js';
 
 const router = Router();
 
@@ -23,6 +25,22 @@ router.post('/communications/batch', require_api_key, async (req, res) => {
     }
 
     const result = await batch_upsert(body_result.data);
+    res.json(result);
+  } catch {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Batch import contacts (daemon endpoint for Apple Contacts sync)
+router.post('/sync/contacts', require_api_key, async (req, res) => {
+  try {
+    const body_result = contacts_import_batch_schema.safeParse(req.body);
+    if (!body_result.success) {
+      res.status(400).json({ error: 'Invalid request body', details: body_result.error.issues });
+      return;
+    }
+
+    const result = await batch_import_contacts(body_result.data.contacts);
     res.json(result);
   } catch {
     res.status(500).json({ error: 'Internal server error' });

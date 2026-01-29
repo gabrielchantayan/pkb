@@ -23,13 +23,62 @@ type BackendConfig struct {
 }
 
 type SourcesConfig struct {
-	IMessage IMessageConfig `yaml:"imessage"`
+	IMessage IMessageConfig  `yaml:"imessage"`
+	Gmail    GmailConfig     `yaml:"gmail"`
+	Contacts ContactsConfig  `yaml:"contacts"`
+	Calendar CalendarConfig  `yaml:"calendar"`
+	Calls    CallsConfig     `yaml:"calls"`
+	Notes    NotesConfig     `yaml:"notes"`
 }
 
 type IMessageConfig struct {
 	Enabled   bool   `yaml:"enabled"`
 	DBPath    string `yaml:"db_path"`
 	StartDate string `yaml:"start_date"`
+}
+
+type GmailConfig struct {
+	Enabled       bool                `yaml:"enabled"`
+	Accounts      []GmailAccountConfig `yaml:"accounts"`
+	StartDate     string              `yaml:"start_date"`
+	Labels        []string            `yaml:"labels"`
+	ExcludeLabels []string            `yaml:"exclude_labels"`
+}
+
+type GmailAccountConfig struct {
+	Name            string `yaml:"name"`
+	CredentialsPath string `yaml:"credentials_path"`
+	TokenPath       string `yaml:"token_path"`
+}
+
+type ContactsConfig struct {
+	Enabled      bool   `yaml:"enabled"`
+	ImportPhotos bool   `yaml:"import_photos"`
+	Source       string `yaml:"source"` // "addressbook" or "carddav"
+}
+
+type CalendarConfig struct {
+	Enabled       bool                     `yaml:"enabled"`
+	Providers     []CalendarProviderConfig `yaml:"providers"`
+	LookbackDays  int                      `yaml:"lookback_days"`
+	LookaheadDays int                      `yaml:"lookahead_days"`
+}
+
+type CalendarProviderConfig struct {
+	Type            string `yaml:"type"` // "google" or "apple"
+	CredentialsPath string `yaml:"credentials_path"`
+	TokenPath       string `yaml:"token_path"`
+}
+
+type CallsConfig struct {
+	Enabled bool   `yaml:"enabled"`
+	DBPath  string `yaml:"db_path"`
+}
+
+type NotesConfig struct {
+	Enabled bool   `yaml:"enabled"`
+	Method  string `yaml:"method"` // "sqlite" or "applescript"
+	DBPath  string `yaml:"db_path"`
 }
 
 type SyncConfig struct {
@@ -101,6 +150,44 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.Logging.Path != "" {
 		cfg.Logging.Path = expandPath(cfg.Logging.Path)
+	}
+
+	// Gmail account paths
+	for i := range cfg.Sources.Gmail.Accounts {
+		if cfg.Sources.Gmail.Accounts[i].CredentialsPath != "" {
+			cfg.Sources.Gmail.Accounts[i].CredentialsPath = expandPath(cfg.Sources.Gmail.Accounts[i].CredentialsPath)
+		}
+		if cfg.Sources.Gmail.Accounts[i].TokenPath != "" {
+			cfg.Sources.Gmail.Accounts[i].TokenPath = expandPath(cfg.Sources.Gmail.Accounts[i].TokenPath)
+		}
+	}
+
+	// Calendar provider paths
+	for i := range cfg.Sources.Calendar.Providers {
+		if cfg.Sources.Calendar.Providers[i].CredentialsPath != "" {
+			cfg.Sources.Calendar.Providers[i].CredentialsPath = expandPath(cfg.Sources.Calendar.Providers[i].CredentialsPath)
+		}
+		if cfg.Sources.Calendar.Providers[i].TokenPath != "" {
+			cfg.Sources.Calendar.Providers[i].TokenPath = expandPath(cfg.Sources.Calendar.Providers[i].TokenPath)
+		}
+	}
+
+	// Calendar defaults
+	if cfg.Sources.Calendar.LookbackDays == 0 {
+		cfg.Sources.Calendar.LookbackDays = 365
+	}
+	if cfg.Sources.Calendar.LookaheadDays == 0 {
+		cfg.Sources.Calendar.LookaheadDays = 90
+	}
+
+	// Calls DB path
+	if cfg.Sources.Calls.DBPath != "" {
+		cfg.Sources.Calls.DBPath = expandPath(cfg.Sources.Calls.DBPath)
+	}
+
+	// Notes DB path
+	if cfg.Sources.Notes.DBPath != "" {
+		cfg.Sources.Notes.DBPath = expandPath(cfg.Sources.Notes.DBPath)
 	}
 
 	return &cfg, nil

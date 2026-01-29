@@ -121,3 +121,55 @@ func (c *Client) post(path string, body []byte) (*http.Response, error) {
 	req.Header.Set("Content-Type", "application/json")
 	return c.httpClient.Do(req)
 }
+
+// ContactImport represents a contact to be imported
+type ContactImport struct {
+	SourceID    string `json:"source_id"`
+	DisplayName string `json:"display_name"`
+	Emails      []string `json:"emails,omitempty"`
+	Phones      []string `json:"phones,omitempty"`
+	Facts       []ContactFact `json:"facts,omitempty"`
+	Note        string `json:"note,omitempty"`
+	PhotoData   string `json:"photo_data,omitempty"` // base64
+}
+
+type ContactFact struct {
+	Type  string `json:"type"`
+	Value string `json:"value"`
+}
+
+type ContactsImportRequest struct {
+	Contacts []ContactImport `json:"contacts"`
+}
+
+type ContactsImportResponse struct {
+	Created int          `json:"created"`
+	Updated int          `json:"updated"`
+	Merged  int          `json:"merged"`
+	Errors  []BatchError `json:"errors"`
+}
+
+func (c *Client) ImportContacts(imports []ContactImport) (*ContactsImportResponse, error) {
+	body, err := json.Marshal(ContactsImportRequest{Contacts: imports})
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	resp, err := c.post("/api/sync/contacts", body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("contacts import failed: %d - %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	var result ContactsImportResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return &result, nil
+}
