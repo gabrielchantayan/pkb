@@ -1,0 +1,17 @@
+{
+  "name": "pkb",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"yarn workspace @pkb/backend dev\" \"yarn workspace @pkb/frontend dev\"",
+    "build": "yarn workspaces foreach -pt run build",
+    "db:migrate": "yarn workspace @pkb/backend db:migrate",
+    "db:seed": "yarn workspace @pkb/backend db:seed"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "packageManager": "yarn@4.6.0"
+}
