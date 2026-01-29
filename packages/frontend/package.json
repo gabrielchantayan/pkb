@@ -9,8 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@pkb/shared": "workspace:*",
     "@base-ui/react": "^1.1.0",
+    "@pkb/shared": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.563.0",
