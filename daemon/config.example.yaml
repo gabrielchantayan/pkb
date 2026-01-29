@@ -1,0 +1,36 @@
+# PKB Daemon Configuration
+
+backend:
+  url: http://localhost:3001
+  api_key: your-api-key-here
+
+sources:
+  imessage:
+    enabled: true
+    db_path: ~/Library/Messages/chat.db
+    # Optional: only sync messages after this date
+    start_date: "2020-01-01"
+
+sync:
+  interval_seconds: 60
+  batch_size: 100
+  # Maximum messages to process per sync cycle
+  max_per_cycle: 1000
+
+blocklist:
+  phones:
+    - "+15551234567"
+  emails:
+    - "spam@example.com"
+  # Partial matches on contact names
+  names:
+    - "Do Not Contact"
+
+logging:
+  level: info  # debug, info, warn, error
+  format: console # json or console
+  path: ""     # empty for stdout, or path to file
+
+state:
+  # Where to store sync checkpoints
+  path: ~/.pkb-daemon/state.json
