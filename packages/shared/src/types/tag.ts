@@ -3,6 +3,12 @@ export interface Tag {
   name: string;
   color: string | null;
   followup_days: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TagWithCount extends Tag {
+  contact_count: number;
 }
 
 export interface ContactTag {
@@ -15,6 +21,16 @@ export interface Group {
   name: string;
   parent_id: string | null;
   followup_days: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GroupWithCount extends Group {
+  contact_count: number;
+}
+
+export interface GroupTreeNode extends GroupWithCount {
+  children: GroupTreeNode[];
 }
 
 export interface ContactGroup {
@@ -22,14 +38,34 @@ export interface ContactGroup {
   group_id: string;
 }
 
-export interface SmartListRule {
+export type SmartListConditionOperator =
+  | 'equals'
+  | 'not_equals'
+  | 'contains'
+  | 'greater_than'
+  | 'less_than'
+  | 'is_empty'
+  | 'is_not_empty';
+
+export interface SmartListCondition {
   field: string;
-  operator: 'equals' | 'contains' | 'gt' | 'lt' | 'gte' | 'lte' | 'in' | 'not_in';
-  value: unknown;
+  operator: SmartListConditionOperator;
+  value?: unknown;
+}
+
+export interface SmartListRules {
+  operator: 'AND' | 'OR';
+  conditions: SmartListCondition[];
 }
 
 export interface SmartList {
   id: string;
   name: string;
-  rules: SmartListRule[];
+  rules: SmartListRules;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SmartListWithCount extends SmartList {
+  contact_count: number;
 }

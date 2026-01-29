@@ -7,3 +7,4 @@ export * from './types/tag.js';
 export * from './types/calendar.js';
 export * from './types/audit.js';
 export * from './types/sync.js';
+export * from './constants/fact-types.js';
