@@ -14,7 +14,7 @@ import { batch_upsert_schema, uuid_param_schema } from '../schemas/communication
 const router = Router();
 
 // Batch upsert communications (daemon endpoint)
-router.post('/sync/communications', require_api_key, async (req, res) => {
+router.post('/communications/batch', require_api_key, async (req, res) => {
   try {
     const body_result = batch_upsert_schema.safeParse(req.body);
     if (!body_result.success) {
