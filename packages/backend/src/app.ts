@@ -15,6 +15,7 @@ import groups_router from './routes/groups.js';
 import smartlists_router from './routes/smartlists.js';
 import sync_router from './routes/sync.js';
 import search_router from './routes/search.js';
+import ai_router from './routes/ai.js';
 
 export function create_app(): express.Application {
   const app = express();
@@ -59,6 +60,9 @@ export function create_app(): express.Application {
 
   // Search routes
   app.use('/api', search_router);
+
+  // AI routes
+  app.use('/api', ai_router);
 
   app.use(error_middleware);
 

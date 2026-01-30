@@ -1,4 +1,5 @@
 import { query } from '../db/index.js';
+import { generate_embedding, is_ai_available } from './ai/index.js';
 import type {
   SearchParams,
   SearchResults,
@@ -265,10 +266,74 @@ async function semantic_search(
   filters: SearchFilters | undefined,
   limit: number
 ): Promise<SearchResults> {
-  // Semantic search requires embeddings which are not yet implemented (AI Integration - step 10)
-  // For now, fall back to keyword search
-  // TODO: Once AI Integration is complete, generate embedding for query and use vector similarity
-  return keyword_search(search_query, types, filters, limit);
+  // Check if AI is available for embedding generation
+  if (!is_ai_available()) {
+    // Fall back to keyword search if no AI
+    return keyword_search(search_query, types, filters, limit);
+  }
+
+  // Generate embedding for the query
+  const query_embedding = await generate_embedding(search_query);
+
+  if (!query_embedding) {
+    // Fallback to keyword search if embedding fails
+    return keyword_search(search_query, types, filters, limit);
+  }
+
+  const results: SearchResult[] = [];
+  const search_types = types ?? ['contact', 'communication', 'fact', 'note'];
+
+  // Currently only communications have embeddings
+  if (search_types.includes('communication')) {
+    const values: unknown[] = [JSON.stringify(query_embedding), limit];
+    let param_index = 3;
+
+    const filter_conditions = build_communication_filters(filters, values, param_index);
+
+    const sql = `
+      SELECT cm.*,
+             c.display_name as contact_name,
+             1 - (cm.content_embedding <=> $1::vector) as score
+      FROM communications cm
+      JOIN contacts c ON c.id = cm.contact_id
+      WHERE c.deleted_at IS NULL
+        AND cm.content_embedding IS NOT NULL
+        ${filter_conditions.clause}
+      ORDER BY cm.content_embedding <=> $1::vector
+      LIMIT $2
+    `;
+
+    try {
+      const result = await query<SemanticCommunicationRow>(sql, values);
+
+      results.push(
+        ...result.rows.map((row) => ({
+          type: 'communication' as const,
+          id: row.id,
+          score: row.score,
+          highlights: [truncate(row.content || '', 200)],
+          data: row,
+          contact: {
+            id: row.contact_id!,
+            displayName: row.contact_name,
+          },
+        }))
+      );
+    } catch {
+      // If vector search fails (e.g., no pgvector extension), fall back to keyword
+      return keyword_search(search_query, types, filters, limit);
+    }
+  }
+
+  return {
+    results: results.slice(0, limit),
+    totalEstimate: results.length,
+  };
+}
+
+function truncate(text: string, max_length: number): string {
+  if (text.length <= max_length) return text;
+  return text.slice(0, max_length - 3) + '...';
 }
 
 async function combined_search(

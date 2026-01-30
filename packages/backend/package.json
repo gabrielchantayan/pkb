@@ -13,6 +13,7 @@
     "job:birthday-reminders": "tsx src/jobs/birthday-reminders.ts"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.21.0",
     "@pkb/shared": "workspace:*",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",

@@ -1048,6 +1048,15 @@ const RAW_RUNTIME_STATE =
         "linkType": "HARD"\
       }]\
     ]],\
+    ["@google/generative-ai", [\
+      ["npm:0.21.0", {\
+        "packageLocation": "../../../.yarn/berry/cache/@google-generative-ai-npm-0.21.0-4b1f39d77c-10c0.zip/node_modules/@google/generative-ai/",\
+        "packageDependencies": [\
+          ["@google/generative-ai", "npm:0.21.0"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
     ["@hono/node-server", [\
       ["npm:1.19.9", {\
         "packageLocation": "../../../.yarn/berry/cache/@hono-node-server-npm-1.19.9-ac57219723-10c0.zip/node_modules/@hono/node-server/",\
@@ -1807,6 +1816,7 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "./packages/backend/",\
         "packageDependencies": [\
           ["@pkb/backend", "workspace:packages/backend"],\
+          ["@google/generative-ai", "npm:0.21.0"],\
           ["@pkb/shared", "workspace:packages/shared"],\
           ["@types/bcrypt", "npm:6.0.0"],\
           ["@types/cookie-parser", "virtual:7d3895c52c5d688ca0d149dd00cfc3b3c8a015abecffaaad8dded4de214c9472b21cecbdf932c02858b764638fd9e72a4dd7ff073a98a0ad5f558ae355c15e70#npm:1.4.10"],\
