@@ -12,6 +12,7 @@ type Config struct {
 	Backend   BackendConfig   `yaml:"backend"`
 	Sources   SourcesConfig   `yaml:"sources"`
 	Sync      SyncConfig      `yaml:"sync"`
+	Queue     QueueConfig     `yaml:"queue"`
 	Blocklist BlocklistConfig `yaml:"blocklist"`
 	Logging   LoggingConfig   `yaml:"logging"`
 	State     StateConfig     `yaml:"state"`
@@ -87,6 +88,17 @@ type SyncConfig struct {
 	MaxPerCycle     int `yaml:"max_per_cycle"`
 }
 
+type QueueConfig struct {
+	Enabled              bool   `yaml:"enabled"`
+	Path                 string `yaml:"path"`
+	MaxRetries           int    `yaml:"max_retries"`
+	InitialBackoffSecs   int    `yaml:"initial_backoff_seconds"`
+	MaxBackoffSecs       int    `yaml:"max_backoff_seconds"`
+	BackoffFactor        float64 `yaml:"backoff_factor"`
+	ProcessIntervalSecs  int    `yaml:"process_interval_seconds"`
+	BatchSize            int    `yaml:"batch_size"`
+}
+
 type BlocklistConfig struct {
 	Phones []string `yaml:"phones"`
 	Emails []string `yaml:"emails"`
@@ -142,6 +154,32 @@ func Load(path string) (*Config, error) {
 		cfg.State.Path = filepath.Join(home, ".pkb-daemon", "state.json")
 	} else {
 		cfg.State.Path = expandPath(cfg.State.Path)
+	}
+
+	// Queue defaults
+	if cfg.Queue.Enabled && cfg.Queue.Path == "" {
+		home, _ := os.UserHomeDir()
+		cfg.Queue.Path = filepath.Join(home, ".pkb-daemon", "queue.db")
+	} else if cfg.Queue.Path != "" {
+		cfg.Queue.Path = expandPath(cfg.Queue.Path)
+	}
+	if cfg.Queue.MaxRetries == 0 {
+		cfg.Queue.MaxRetries = 10
+	}
+	if cfg.Queue.InitialBackoffSecs == 0 {
+		cfg.Queue.InitialBackoffSecs = 5
+	}
+	if cfg.Queue.MaxBackoffSecs == 0 {
+		cfg.Queue.MaxBackoffSecs = 3600 // 1 hour
+	}
+	if cfg.Queue.BackoffFactor == 0 {
+		cfg.Queue.BackoffFactor = 2.0
+	}
+	if cfg.Queue.ProcessIntervalSecs == 0 {
+		cfg.Queue.ProcessIntervalSecs = 30
+	}
+	if cfg.Queue.BatchSize == 0 {
+		cfg.Queue.BatchSize = 10
 	}
 
 	// Expand paths

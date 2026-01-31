@@ -49,6 +49,13 @@ func main() {
 	// Create sync manager
 	manager := sync.NewManager(client, cfg)
 
+	// Initialize offline queue if enabled
+	if cfg.Queue.Enabled {
+		if err := manager.InitQueue(); err != nil {
+			log.Fatal().Err(err).Msg("Failed to initialize offline queue")
+		}
+	}
+
 	// Register communication sources
 
 	// iMessage

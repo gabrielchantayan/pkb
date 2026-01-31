@@ -11,7 +11,11 @@ import {
 } from '../services/attachments.js';
 import { query } from '../db/index.js';
 import { batch_upsert_schema, uuid_param_schema } from '../schemas/communications.js';
-import { contacts_import_batch_schema } from '../schemas/sync.js';
+import {
+  contacts_import_batch_schema,
+  calendar_events_batch_schema,
+  apple_notes_batch_schema,
+} from '../schemas/sync.js';
 
 const router = Router();
 
@@ -92,6 +96,130 @@ router.post('/sync/attachments', require_api_key, async (req, res) => {
     );
 
     res.status(201).json({ attachment });
+  } catch {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Batch upsert calendar events (daemon endpoint)
+router.post('/sync/calendar', require_api_key, async (req, res) => {
+  try {
+    const body_result = calendar_events_batch_schema.safeParse(req.body);
+    if (!body_result.success) {
+      res.status(400).json({ error: 'Invalid request body', details: body_result.error.issues });
+      return;
+    }
+
+    const events = body_result.data.events;
+    let inserted = 0;
+    let updated = 0;
+    const errors: { index: number; error: string }[] = [];
+
+    for (let i = 0; i < events.length; i++) {
+      const event = events[i];
+      try {
+        // Resolve attendee emails to contact IDs
+        const attendee_contact_ids: string[] = [];
+        if (event.attendees && event.attendees.length > 0) {
+          for (const email of event.attendees) {
+            const contact_result = await query<{ contact_id: string }>(
+              `SELECT contact_id FROM contact_identifiers
+               WHERE type = 'email' AND LOWER(value) = LOWER($1)`,
+              [email]
+            );
+            if (contact_result.rows.length > 0) {
+              attendee_contact_ids.push(contact_result.rows[0].contact_id);
+            }
+          }
+        }
+
+        // Upsert the calendar event
+        const result = await query<{ id: string; is_insert: boolean }>(
+          `INSERT INTO calendar_events (source, source_id, title, description, start_time, end_time, location, attendee_contact_ids)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           ON CONFLICT (source, source_id) DO UPDATE SET
+             title = EXCLUDED.title,
+             description = EXCLUDED.description,
+             start_time = EXCLUDED.start_time,
+             end_time = EXCLUDED.end_time,
+             location = EXCLUDED.location,
+             attendee_contact_ids = EXCLUDED.attendee_contact_ids
+           RETURNING id, (xmax = 0) as is_insert`,
+          [
+            event.provider,
+            event.source_id,
+            event.title || '',
+            event.description || null,
+            event.start_time,
+            event.end_time || null,
+            event.location || null,
+            attendee_contact_ids.length > 0 ? attendee_contact_ids : null,
+          ]
+        );
+
+        if (result.rows[0] && result.rows[0].is_insert) {
+          inserted++;
+        } else {
+          updated++;
+        }
+      } catch (err) {
+        errors.push({ index: i, error: String(err) });
+      }
+    }
+
+    res.json({ inserted, updated, errors });
+  } catch {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Batch upsert Apple Notes (daemon endpoint)
+router.post('/sync/notes', require_api_key, async (req, res) => {
+  try {
+    const body_result = apple_notes_batch_schema.safeParse(req.body);
+    if (!body_result.success) {
+      res.status(400).json({ error: 'Invalid request body', details: body_result.error.issues });
+      return;
+    }
+
+    const notes = body_result.data.notes;
+    let inserted = 0;
+    let updated = 0;
+    const errors: { index: number; error: string }[] = [];
+
+    for (let i = 0; i < notes.length; i++) {
+      const note = notes[i];
+      try {
+        const result = await query<{ id: string; is_insert: boolean }>(
+          `INSERT INTO apple_notes (source_id, title, content, folder, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, COALESCE($5::timestamptz, NOW()), COALESCE($6::timestamptz, NOW()))
+           ON CONFLICT (source_id) DO UPDATE SET
+             title = EXCLUDED.title,
+             content = EXCLUDED.content,
+             folder = EXCLUDED.folder,
+             updated_at = COALESCE(EXCLUDED.updated_at, NOW())
+           RETURNING id, (xmax = 0) as is_insert`,
+          [
+            note.source_id,
+            note.title || null,
+            note.content || null,
+            note.folder || null,
+            note.created_at || null,
+            note.updated_at || null,
+          ]
+        );
+
+        if (result.rows[0] && result.rows[0].is_insert) {
+          inserted++;
+        } else {
+          updated++;
+        }
+      } catch (err) {
+        errors.push({ index: i, error: String(err) });
+      }
+    }
+
+    res.json({ inserted, updated, errors });
   } catch {
     res.status(500).json({ error: 'Internal server error' });
   }

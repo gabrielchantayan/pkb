@@ -12,6 +12,11 @@ import {
   NotFoundError,
 } from '../services/tags.js';
 import {
+  suggest_tags_for_contact,
+  apply_suggested_tag,
+  is_ai_available,
+} from '../services/ai/index.js';
+import {
   create_tag_schema,
   update_tag_schema,
   uuid_param_schema,
@@ -19,6 +24,7 @@ import {
   add_tag_to_contact_schema,
   contact_tag_params_schema,
 } from '../schemas/organization.js';
+import { apply_suggested_tag_schema } from '../schemas/ai.js';
 
 const router = Router();
 
@@ -120,6 +126,68 @@ router.delete('/tags/:id', require_auth, async (req, res) => {
     }
 
     res.json({ success: true });
+  } catch {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get AI-suggested tags for a contact
+router.get('/contacts/:contactId/suggested-tags', require_auth, async (req, res) => {
+  try {
+    const param_result = contact_id_param_schema.safeParse(req.params);
+    if (!param_result.success) {
+      res.status(400).json({ error: 'Invalid contact ID' });
+      return;
+    }
+
+    if (!is_ai_available()) {
+      res.status(503).json({ error: 'AI services not available' });
+      return;
+    }
+
+    const result = await suggest_tags_for_contact(param_result.data.contactId);
+    if (!result) {
+      res.status(404).json({ error: 'Contact not found' });
+      return;
+    }
+
+    res.json(result);
+  } catch {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Apply an AI-suggested tag to a contact
+router.post('/contacts/:contactId/suggested-tags/apply', require_auth, async (req, res) => {
+  try {
+    const param_result = contact_id_param_schema.safeParse(req.params);
+    if (!param_result.success) {
+      res.status(400).json({ error: 'Invalid contact ID' });
+      return;
+    }
+
+    const body_result = apply_suggested_tag_schema.safeParse(req.body);
+    if (!body_result.success) {
+      res.status(400).json({ error: 'Invalid request body', details: body_result.error.issues });
+      return;
+    }
+
+    const suggestion = {
+      name: body_result.data.name,
+      is_existing: body_result.data.is_existing,
+      existing_tag_id: body_result.data.existing_tag_id ?? null,
+      confidence: body_result.data.confidence,
+      reason: body_result.data.reason ?? 'Applied from suggestion',
+    };
+
+    const result = await apply_suggested_tag(param_result.data.contactId, suggestion);
+
+    if (!result.success) {
+      res.status(500).json({ error: result.error || 'Failed to apply tag' });
+      return;
+    }
+
+    res.json({ success: true, tag_id: result.tag_id });
   } catch {
     res.status(500).json({ error: 'Internal server error' });
   }

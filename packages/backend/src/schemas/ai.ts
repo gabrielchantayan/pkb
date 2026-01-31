@@ -31,3 +31,14 @@ export const backfill_schema = z.object({
 });
 
 export type BackfillInput = z.infer<typeof backfill_schema>;
+
+// Apply suggested tag
+export const apply_suggested_tag_schema = z.object({
+  name: z.string().min(1).max(100),
+  is_existing: z.boolean().optional().default(false),
+  existing_tag_id: z.string().uuid().nullable().optional(),
+  confidence: z.number().min(0).max(1).optional().default(1.0),
+  reason: z.string().optional(),
+});
+
+export type ApplySuggestedTagInput = z.infer<typeof apply_suggested_tag_schema>;

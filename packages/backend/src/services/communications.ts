@@ -5,6 +5,8 @@ import type {
   BatchUpsertInput,
   CommunicationInput,
 } from '../schemas/communications.js';
+import { process_communications } from './ai/pipeline.js';
+import { logger } from '../lib/logger.js';
 
 export interface ListCommunicationsResponse {
   communications: Communication[];
@@ -120,6 +122,7 @@ export async function get_communication(id: string): Promise<CommunicationDetail
 
 export async function batch_upsert(input: BatchUpsertInput): Promise<BatchUpsertResult> {
   const results: BatchUpsertResult = { inserted: 0, updated: 0, errors: [] };
+  const inserted_ids: string[] = [];
 
   for (let i = 0; i < input.communications.length; i++) {
     const item = input.communications[i];
@@ -157,6 +160,7 @@ export async function batch_upsert(input: BatchUpsertInput): Promise<BatchUpsert
       const row = result.rows[0];
       if (row.inserted) {
         results.inserted++;
+        inserted_ids.push(row.id);
       } else {
         results.updated++;
       }
@@ -175,9 +179,6 @@ export async function batch_upsert(input: BatchUpsertInput): Promise<BatchUpsert
         await update_conversation(client, item.source, item.thread_id, contact_id, row.id);
       }
 
-      // Queue for embedding generation (stub - to be implemented in AI Integration)
-      await queue_for_embedding(row.id);
-
       await client.query('COMMIT');
     } catch (error) {
       await client.query('ROLLBACK');
@@ -188,6 +189,17 @@ export async function batch_upsert(input: BatchUpsertInput): Promise<BatchUpsert
     } finally {
       client.release();
     }
+  }
+
+  // Process newly inserted communications through AI pipeline (async, non-blocking)
+  // AI failures should not affect the batch upsert result
+  if (inserted_ids.length > 0) {
+    process_communications(inserted_ids).catch((error) => {
+      logger.error('AI pipeline error during batch upsert', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        communication_count: inserted_ids.length,
+      });
+    });
   }
 
   return results;
@@ -231,11 +243,6 @@ async function resolve_contact(
   );
 
   return contact.rows[0].id;
-}
-
-async function queue_for_embedding(_communication_id: string): Promise<void> {
-  // Stub: to be implemented in AI Integration feature (step 10)
-  // This will queue the communication for async embedding generation
 }
 
 export interface SearchCommunicationsParams {

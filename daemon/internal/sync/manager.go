@@ -8,6 +8,7 @@ import (
 
 	"pkb-daemon/internal/api"
 	"pkb-daemon/internal/config"
+	"pkb-daemon/internal/queue"
 	"pkb-daemon/internal/sources/calendar"
 	"pkb-daemon/internal/sources/contacts"
 	"pkb-daemon/internal/sources/notes"
@@ -41,6 +42,8 @@ type Manager struct {
 	client          *api.Client
 	config          *config.Config
 	state           *State
+	queue           *queue.Queue
+	queueProcessor  *queue.Processor
 	sources         []Source
 	contactsSources []ContactsSource
 	calendarSources []CalendarSource
@@ -48,7 +51,7 @@ type Manager struct {
 }
 
 func NewManager(client *api.Client, cfg *config.Config) *Manager {
-	return &Manager{
+	m := &Manager{
 		client:          client,
 		config:          cfg,
 		state:           NewState(cfg.State.Path),
@@ -56,6 +59,97 @@ func NewManager(client *api.Client, cfg *config.Config) *Manager {
 		contactsSources: []ContactsSource{},
 		calendarSources: []CalendarSource{},
 		notesSources:    []NotesSource{},
+	}
+	return m
+}
+
+// InitQueue initializes the offline queue system
+func (m *Manager) InitQueue() error {
+	if !m.config.Queue.Enabled {
+		log.Info().Msg("Offline queue disabled")
+		return nil
+	}
+
+	queueCfg := queue.Config{
+		Path:           m.config.Queue.Path,
+		MaxRetries:     m.config.Queue.MaxRetries,
+		InitialBackoff: time.Duration(m.config.Queue.InitialBackoffSecs) * time.Second,
+		MaxBackoff:     time.Duration(m.config.Queue.MaxBackoffSecs) * time.Second,
+		BackoffFactor:  m.config.Queue.BackoffFactor,
+	}
+
+	q, err := queue.New(queueCfg)
+	if err != nil {
+		return err
+	}
+	m.queue = q
+
+	// Create processor with handler that routes to appropriate API methods
+	procCfg := queue.ProcessorConfig{
+		CheckInterval: time.Duration(m.config.Queue.ProcessIntervalSecs) * time.Second,
+		BatchSize:     m.config.Queue.BatchSize,
+	}
+
+	m.queueProcessor = queue.NewProcessor(q, m.handleQueuedRequest, procCfg)
+
+	// Set online checker to use health check
+	m.queueProcessor.SetOnlineChecker(func() bool {
+		err := m.client.HealthCheck()
+		return err == nil
+	})
+
+	log.Info().
+		Str("path", m.config.Queue.Path).
+		Int("max_retries", m.config.Queue.MaxRetries).
+		Msg("Offline queue initialized")
+
+	// Log queue stats
+	if stats, err := m.queue.Stats(); err == nil && stats.PendingCount > 0 {
+		log.Info().
+			Int64("pending", stats.PendingCount).
+			Int64("expired", stats.ExpiredCount).
+			Msg("Queued requests from previous session")
+	}
+
+	return nil
+}
+
+// handleQueuedRequest processes a request from the queue
+func (m *Manager) handleQueuedRequest(reqType queue.RequestType, payload []byte) error {
+	switch reqType {
+	case queue.RequestTypeBatchUpsert:
+		return m.client.BatchUpsertFromPayload(payload)
+	case queue.RequestTypeImportContacts:
+		return m.client.ImportContactsFromPayload(payload)
+	case queue.RequestTypeImportCalendar:
+		return m.client.ImportCalendarEventsFromPayload(payload)
+	case queue.RequestTypeImportNotes:
+		return m.client.ImportAppleNotesFromPayload(payload)
+	default:
+		log.Warn().Str("type", string(reqType)).Msg("Unknown queued request type")
+		return nil // Don't retry unknown types
+	}
+}
+
+// enqueueOnError queues a failed request if the queue is enabled and the error is temporary
+func (m *Manager) enqueueOnError(reqType queue.RequestType, payload interface{}, err error) {
+	if m.queue == nil {
+		return
+	}
+
+	if !api.IsTemporaryError(err) {
+		log.Debug().
+			Str("type", string(reqType)).
+			Err(err).
+			Msg("Not queuing permanent error")
+		return
+	}
+
+	if queueErr := m.queue.Enqueue(reqType, payload, err.Error()); queueErr != nil {
+		log.Error().
+			Err(queueErr).
+			Str("type", string(reqType)).
+			Msg("Failed to queue request for retry")
 	}
 }
 
@@ -85,6 +179,11 @@ func (m *Manager) Run(ctx context.Context) error {
 		log.Warn().Err(err).Msg("Failed to load state, starting fresh")
 	}
 
+	// Start queue processor in background if enabled
+	if m.queueProcessor != nil {
+		go m.queueProcessor.Run(ctx)
+	}
+
 	ticker := time.NewTicker(time.Duration(m.config.Sync.IntervalSeconds) * time.Second)
 	defer ticker.Stop()
 
@@ -94,6 +193,12 @@ func (m *Manager) Run(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
+			// Close queue on shutdown
+			if m.queue != nil {
+				if err := m.queue.Close(); err != nil {
+					log.Error().Err(err).Msg("Failed to close queue")
+				}
+			}
 			return nil
 		case <-ticker.C:
 			m.syncAll(ctx)
@@ -155,6 +260,26 @@ func (m *Manager) syncSource(ctx context.Context, src Source) error {
 		// Send to backend
 		result, err := m.client.BatchUpsert(comms)
 		if err != nil {
+			// Queue the failed request for retry
+			m.enqueueOnError(queue.RequestTypeBatchUpsert, api.BatchUpsertRequest{Communications: comms}, err)
+
+			// If it's a temporary error, we should stop this sync cycle
+			// but still update checkpoint so we don't re-fetch the same data
+			if api.IsTemporaryError(err) {
+				log.Warn().
+					Err(err).
+					Str("source", src.Name()).
+					Int("count", len(comms)).
+					Msg("Batch queued for retry due to temporary error")
+
+				// Update checkpoint even on failure to avoid re-fetching
+				checkpoint = newCheckpoint
+				m.state.SetCheckpoint(src.Name(), checkpoint)
+				if saveErr := m.state.Save(); saveErr != nil {
+					log.Warn().Err(saveErr).Msg("Failed to save state")
+				}
+				return err
+			}
 			return err
 		}
 
@@ -213,6 +338,16 @@ func (m *Manager) syncContactsSource(ctx context.Context, src ContactsSource) er
 	// Send to backend
 	result, err := m.client.ImportContacts(apiImports)
 	if err != nil {
+		// Queue the failed request for retry
+		m.enqueueOnError(queue.RequestTypeImportContacts, api.ContactsImportRequest{Contacts: apiImports}, err)
+
+		if api.IsTemporaryError(err) {
+			log.Warn().
+				Err(err).
+				Str("source", src.Name()).
+				Int("count", len(apiImports)).
+				Msg("Contacts import queued for retry due to temporary error")
+		}
 		return err
 	}
 
@@ -239,11 +374,47 @@ func (m *Manager) syncCalendarSource(ctx context.Context, src CalendarSource) er
 		return nil
 	}
 
-	// For now, log calendar events - full integration would require backend endpoint
+	// Convert to API format
+	apiEvents := make([]api.CalendarEventImport, len(events))
+	for i, event := range events {
+		apiEvents[i] = api.CalendarEventImport{
+			SourceID:    event.SourceID,
+			Provider:    event.Provider,
+			Title:       event.Title,
+			Description: event.Description,
+			Location:    event.Location,
+			StartTime:   event.StartTime.Format("2006-01-02T15:04:05Z07:00"),
+			AllDay:      event.AllDay,
+			Attendees:   event.Attendees,
+			CalendarID:  event.CalendarID,
+		}
+		if !event.EndTime.IsZero() {
+			apiEvents[i].EndTime = event.EndTime.Format("2006-01-02T15:04:05Z07:00")
+		}
+	}
+
+	// Send to backend
+	result, err := m.client.ImportCalendarEvents(apiEvents)
+	if err != nil {
+		// Queue for retry if it's a temporary error
+		m.enqueueOnError(queue.RequestTypeImportCalendar, api.CalendarEventsRequest{Events: apiEvents}, err)
+
+		if api.IsTemporaryError(err) {
+			log.Warn().
+				Err(err).
+				Str("source", src.Name()).
+				Int("count", len(apiEvents)).
+				Msg("Calendar events queued for retry due to temporary error")
+		}
+		return err
+	}
+
 	log.Info().
 		Str("source", src.Name()).
-		Int("events", len(events)).
-		Msg("Calendar events fetched")
+		Int("inserted", result.Inserted).
+		Int("updated", result.Updated).
+		Int("errors", len(result.Errors)).
+		Msg("Calendar events synced")
 
 	// Update checkpoint
 	m.state.SetCheckpoint(src.Name(), newCheckpoint)
@@ -274,11 +445,52 @@ func (m *Manager) syncNotesSource(ctx context.Context, src NotesSource) error {
 			break
 		}
 
-		// For now, log notes - full integration would require backend endpoint
+		// Convert to API format
+		apiNotes := make([]api.AppleNoteImport, len(noteImports))
+		for i, note := range noteImports {
+			apiNotes[i] = api.AppleNoteImport{
+				SourceID: note.SourceID,
+				Title:    note.Title,
+				Content:  note.Content,
+				Folder:   note.Folder,
+			}
+			if !note.CreatedAt.IsZero() {
+				apiNotes[i].CreatedAt = note.CreatedAt.Format("2006-01-02T15:04:05Z07:00")
+			}
+			if !note.UpdatedAt.IsZero() {
+				apiNotes[i].UpdatedAt = note.UpdatedAt.Format("2006-01-02T15:04:05Z07:00")
+			}
+		}
+
+		// Send to backend
+		result, err := m.client.ImportAppleNotes(apiNotes)
+		if err != nil {
+			// Queue for retry if it's a temporary error
+			m.enqueueOnError(queue.RequestTypeImportNotes, api.AppleNotesRequest{Notes: apiNotes}, err)
+
+			if api.IsTemporaryError(err) {
+				log.Warn().
+					Err(err).
+					Str("source", src.Name()).
+					Int("count", len(apiNotes)).
+					Msg("Notes queued for retry due to temporary error")
+
+				// Update checkpoint even on failure to avoid re-fetching
+				checkpoint = newCheckpoint
+				m.state.SetCheckpoint(src.Name(), checkpoint)
+				if saveErr := m.state.Save(); saveErr != nil {
+					log.Warn().Err(saveErr).Msg("Failed to save state")
+				}
+			}
+			return err
+		}
+
 		log.Info().
 			Str("source", src.Name()).
-			Int("notes", len(noteImports)).
-			Msg("Notes fetched")
+			Int("inserted", result.Inserted).
+			Int("updated", result.Updated).
+			Int("errors", len(result.Errors)).
+			Msg("Notes synced")
 
 		// Update checkpoint
 		checkpoint = newCheckpoint

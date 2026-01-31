@@ -31,5 +31,23 @@ export {
   type EmbedBatchResult,
 } from './embeddings.js';
 
+// Sentiment analysis
+export {
+  analyze_sentiment,
+  analyze_communication_sentiment,
+  update_contact_sentiment_trend,
+  backfill_sentiment,
+  type Sentiment,
+  type SentimentResult,
+} from './sentiment.js';
+
 // Pipeline
 export { process_communications, process_single_communication } from './pipeline.js';
+
+// Tag suggestions
+export {
+  suggest_tags_for_contact,
+  apply_suggested_tag,
+  type TagSuggestion,
+  type TagSuggestionResult,
+} from './tag-suggestions.js';
