@@ -2,9 +2,9 @@ export interface Config {
   port: number;
   database_url: string;
   node_env: string;
-  api_key: string | null;
-  jwt_secret: string | null;
-  gemini_api_key: string | null;
+  api_key: string;
+  jwt_secret: string;
+  gemini_api_key: string;
   storage_type: 'local' | 's3';
   storage_path: string;
   log_level: 'debug' | 'info' | 'warn' | 'error';
@@ -24,11 +24,11 @@ function get_env(key: string, default_value?: string): string {
 export function load_config(): Config {
   return {
     port: parseInt(get_env('PORT', '4000'), 10),
-    database_url: get_env('DATABASE_URL', 'postgres://pkb:pkb@localhost:5432/pkb'),
+    database_url: get_env('DATABASE_URL'),
     node_env: get_env('NODE_ENV', 'development'),
-    api_key: process.env.API_KEY || null,
-    jwt_secret: process.env.JWT_SECRET || null,
-    gemini_api_key: process.env.GEMINI_API_KEY || null,
+    api_key: get_env('API_KEY'),
+    jwt_secret: get_env('JWT_SECRET'),
+    gemini_api_key: get_env('GEMINI_API_KEY'),
     storage_type: (process.env.STORAGE_TYPE as 'local' | 's3') || 'local',
     storage_path: get_env('STORAGE_PATH', './data/attachments'),
     log_level: (process.env.LOG_LEVEL as Config['log_level']) || 'info',
