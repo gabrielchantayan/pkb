@@ -16,6 +16,7 @@ import {
   calendar_events_batch_schema,
   apple_notes_batch_schema,
 } from '../schemas/sync.js';
+import { logger } from '../lib/logger.js';
 
 const router = Router();
 
@@ -24,13 +25,36 @@ router.post('/communications/batch', require_api_key, async (req, res) => {
   try {
     const body_result = batch_upsert_schema.safeParse(req.body);
     if (!body_result.success) {
-      res.status(400).json({ error: 'Invalid request body', details: body_result.error.issues });
+      const issues = body_result.error.issues;
+      logger.error('communications/batch validation failed', {
+        request_id: req.request_id,
+        error_count: issues.length,
+        issues: issues.map(issue => ({
+          path: issue.path.join('.'),
+          code: issue.code,
+          message: issue.message,
+          received: 'received' in issue ? issue.received : undefined,
+          expected: 'expected' in issue ? issue.expected : undefined,
+        })),
+        body_keys: req.body ? Object.keys(req.body) : [],
+        communications_count: req.body?.communications?.length ?? 0,
+        sample_communication: req.body?.communications?.[0] ? {
+          ...req.body.communications[0],
+          content: req.body.communications[0].content?.slice(0, 100) + '...',
+        } : null,
+      });
+      res.status(400).json({ error: 'Invalid request body', details: issues });
       return;
     }
 
     const result = await batch_upsert(body_result.data);
     res.json(result);
-  } catch {
+  } catch (err) {
+    logger.error('communications/batch unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -40,13 +64,32 @@ router.post('/sync/contacts', require_api_key, async (req, res) => {
   try {
     const body_result = contacts_import_batch_schema.safeParse(req.body);
     if (!body_result.success) {
-      res.status(400).json({ error: 'Invalid request body', details: body_result.error.issues });
+      const issues = body_result.error.issues;
+      logger.error('sync/contacts validation failed', {
+        request_id: req.request_id,
+        error_count: issues.length,
+        issues: issues.map(issue => ({
+          path: issue.path.join('.'),
+          code: issue.code,
+          message: issue.message,
+          received: 'received' in issue ? issue.received : undefined,
+          expected: 'expected' in issue ? issue.expected : undefined,
+        })),
+        body_keys: req.body ? Object.keys(req.body) : [],
+        contacts_count: req.body?.contacts?.length ?? 0,
+      });
+      res.status(400).json({ error: 'Invalid request body', details: issues });
       return;
     }
 
     const result = await batch_import_contacts(body_result.data.contacts);
     res.json(result);
-  } catch {
+  } catch (err) {
+    logger.error('sync/contacts unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -60,6 +103,11 @@ router.post('/sync/attachments', require_api_key, async (req, res) => {
     const content_type = req.headers['content-type'] || '';
 
     if (!content_type.includes('application/json')) {
+      logger.error('sync/attachments wrong content type', {
+        request_id: req.request_id,
+        content_type,
+        expected: 'application/json',
+      });
       res.status(400).json({ error: 'Expected application/json with base64-encoded file data' });
       return;
     }
@@ -67,6 +115,14 @@ router.post('/sync/attachments', require_api_key, async (req, res) => {
     const { communication_source, communication_source_id, filename, mime_type, data } = req.body;
 
     if (!communication_source || !communication_source_id || !filename || !data) {
+      logger.error('sync/attachments missing required fields', {
+        request_id: req.request_id,
+        has_communication_source: !!communication_source,
+        has_communication_source_id: !!communication_source_id,
+        has_filename: !!filename,
+        has_data: !!data,
+        body_keys: req.body ? Object.keys(req.body) : [],
+      });
       res.status(400).json({
         error: 'Missing required fields: communication_source, communication_source_id, filename, data',
       });
@@ -96,7 +152,12 @@ router.post('/sync/attachments', require_api_key, async (req, res) => {
     );
 
     res.status(201).json({ attachment });
-  } catch {
+  } catch (err) {
+    logger.error('sync/attachments unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -106,7 +167,21 @@ router.post('/sync/calendar', require_api_key, async (req, res) => {
   try {
     const body_result = calendar_events_batch_schema.safeParse(req.body);
     if (!body_result.success) {
-      res.status(400).json({ error: 'Invalid request body', details: body_result.error.issues });
+      const issues = body_result.error.issues;
+      logger.error('sync/calendar validation failed', {
+        request_id: req.request_id,
+        error_count: issues.length,
+        issues: issues.map(issue => ({
+          path: issue.path.join('.'),
+          code: issue.code,
+          message: issue.message,
+          received: 'received' in issue ? issue.received : undefined,
+          expected: 'expected' in issue ? issue.expected : undefined,
+        })),
+        body_keys: req.body ? Object.keys(req.body) : [],
+        events_count: req.body?.events?.length ?? 0,
+      });
+      res.status(400).json({ error: 'Invalid request body', details: issues });
       return;
     }
 
@@ -168,7 +243,12 @@ router.post('/sync/calendar', require_api_key, async (req, res) => {
     }
 
     res.json({ inserted, updated, errors });
-  } catch {
+  } catch (err) {
+    logger.error('sync/calendar unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -178,7 +258,21 @@ router.post('/sync/notes', require_api_key, async (req, res) => {
   try {
     const body_result = apple_notes_batch_schema.safeParse(req.body);
     if (!body_result.success) {
-      res.status(400).json({ error: 'Invalid request body', details: body_result.error.issues });
+      const issues = body_result.error.issues;
+      logger.error('sync/notes validation failed', {
+        request_id: req.request_id,
+        error_count: issues.length,
+        issues: issues.map(issue => ({
+          path: issue.path.join('.'),
+          code: issue.code,
+          message: issue.message,
+          received: 'received' in issue ? issue.received : undefined,
+          expected: 'expected' in issue ? issue.expected : undefined,
+        })),
+        body_keys: req.body ? Object.keys(req.body) : [],
+        notes_count: req.body?.notes?.length ?? 0,
+      });
+      res.status(400).json({ error: 'Invalid request body', details: issues });
       return;
     }
 
@@ -220,7 +314,12 @@ router.post('/sync/notes', require_api_key, async (req, res) => {
     }
 
     res.json({ inserted, updated, errors });
-  } catch {
+  } catch (err) {
+    logger.error('sync/notes unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -230,6 +329,11 @@ router.get('/attachments/:id', require_api_key, async (req, res) => {
   try {
     const param_result = uuid_param_schema.safeParse(req.params);
     if (!param_result.success) {
+      logger.error('attachments/:id invalid param', {
+        request_id: req.request_id,
+        param_id: req.params.id,
+        issues: param_result.error.issues,
+      });
       res.status(400).json({ error: 'Invalid attachment ID' });
       return;
     }
@@ -261,7 +365,13 @@ router.get('/attachments/:id', require_api_key, async (req, res) => {
 
     const stream = createReadStream(file_path);
     stream.pipe(res);
-  } catch {
+  } catch (err) {
+    logger.error('attachments/:id unexpected error', {
+      request_id: req.request_id,
+      attachment_id: req.params.id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });

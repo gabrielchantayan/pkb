@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"fmt"
+	"mime"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -150,11 +151,9 @@ func (s *Source) Sync(ctx context.Context, checkpoint string, limit int) ([]api.
 			},
 		}
 
-		// Get attachments if present
-		if hasAttachments == 1 {
-			attachments, _ := s.getAttachments(db, rowID)
-			comm.Attachments = attachments
-		}
+		// Skip attachments for now to avoid payload size issues
+		// TODO: Re-enable with proper chunking/streaming
+		_ = hasAttachments
 
 		comms = append(comms, comm)
 		newCheckpoint = strconv.FormatInt(rowID, 10)
@@ -267,15 +266,34 @@ func (s *Source) getAttachments(db *sql.DB, messageRowID int64) ([]api.Attachmen
 			filePath = filepath.Join(home, filePath[1:])
 		}
 
+		// Skip large attachments (>5MB) to avoid payload size issues
+		const maxAttachmentSize = 5 * 1024 * 1024
+		if totalBytes.Int64 > maxAttachmentSize {
+			continue
+		}
+
 		// Read file and encode as base64
 		data, err := os.ReadFile(filePath)
 		if err != nil {
 			continue // Skip if file not readable
 		}
 
+		// Determine mime type - use database value, infer from extension, or skip
+		actualMimeType := mimeType.String
+		if actualMimeType == "" {
+			ext := filepath.Ext(filePath)
+			if ext != "" {
+				actualMimeType = mime.TypeByExtension(ext)
+			}
+		}
+		// Skip attachments with no determinable mime type
+		if actualMimeType == "" {
+			continue
+		}
+
 		attachments = append(attachments, api.Attachment{
 			Filename:  filepath.Base(filePath),
-			MimeType:  mimeType.String,
+			MimeType:  actualMimeType,
 			SizeBytes: totalBytes.Int64,
 			Data:      base64.StdEncoding.EncodeToString(data),
 		})

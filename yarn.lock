@@ -1423,6 +1423,7 @@ __metadata:
     "@pkb/shared": "workspace:*"
     "@types/bcrypt": "npm:^6.0.0"
     "@types/cookie-parser": "npm:^1.4.10"
+    "@types/cors": "npm:^2.8.19"
     "@types/express": "npm:^5.0.0"
     "@types/multer": "npm:^2.0.0"
     "@types/node": "npm:^22.10.7"
@@ -1430,6 +1431,7 @@ __metadata:
     "@types/supertest": "npm:^6.0.3"
     bcrypt: "npm:^6.0.0"
     cookie-parser: "npm:^1.4.7"
+    cors: "npm:^2.8.6"
     express: "npm:^5.0.1"
     multer: "npm:^2.0.2"
     pg: "npm:^8.13.1"
@@ -1951,6 +1953,15 @@ __metadata:
   version: 2.1.5
   resolution: "@types/cookiejar@npm:2.1.5"
   checksum: 10c0/af38c3d84aebb3ccc6e46fb6afeeaac80fb26e63a487dd4db5a8b87e6ad3d4b845ba1116b2ae90d6f886290a36200fa433d8b1f6fe19c47da6b81872ce9a2764
+  languageName: node
+  linkType: hard
+
+"@types/cors@npm:^2.8.19":
+  version: 2.8.19
+  resolution: "@types/cors@npm:2.8.19"
+  dependencies:
+    "@types/node": "npm:*"
+  checksum: 10c0/b5dd407040db7d8aa1bd36e79e5f3f32292f6b075abc287529e9f48df1a25fda3e3799ba30b4656667ffb931d3b75690c1d6ca71e39f7337ea6dfda8581916d0
   languageName: node
   linkType: hard
 
@@ -3265,7 +3276,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"cors@npm:^2.8.5":
+"cors@npm:^2.8.5, cors@npm:^2.8.6":
   version: 2.8.6
   resolution: "cors@npm:2.8.6"
   dependencies:

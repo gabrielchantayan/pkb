@@ -5,7 +5,6 @@ import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { use_relationship_graph } from '@/lib/hooks/use-relationships';
 import { Card } from '@/components/ui/card';
-import { AppLayout } from '@/components/layout/app-layout';
 import { Loader2 } from 'lucide-react';
 
 const ForceGraph2D = dynamic(() => import('react-force-graph-2d'), {
@@ -63,14 +62,12 @@ export default function GraphPage() {
 
   if (isLoading) {
     return (
-      <AppLayout>
-        <div className="space-y-6">
-          <h1 className="text-3xl font-bold">Relationship Graph</h1>
-          <Card className="h-[calc(100vh-200px)] flex items-center justify-center">
-            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-          </Card>
-        </div>
-      </AppLayout>
+      <div className="space-y-6">
+        <h1 className="text-3xl font-bold">Relationship Graph</h1>
+        <Card className="h-[calc(100vh-200px)] flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+        </Card>
+      </div>
     );
   }
 
@@ -91,11 +88,10 @@ export default function GraphPage() {
   };
 
   return (
-    <AppLayout>
-      <div className="space-y-6">
-        <h1 className="text-3xl font-bold">Relationship Graph</h1>
+    <div className="space-y-6">
+      <h1 className="text-3xl font-bold">Relationship Graph</h1>
 
-        <Card ref={container_ref} className="h-[calc(100vh-200px)] overflow-hidden">
+      <Card ref={container_ref} className="h-[calc(100vh-200px)] overflow-hidden">
           {graph_data.nodes.length > 0 ? (
             <ForceGraph2D
               ref={graph_ref}
@@ -131,8 +127,7 @@ export default function GraphPage() {
               No relationship data available. Add contacts and relationships to see the graph.
             </div>
           )}
-        </Card>
-      </div>
-    </AppLayout>
+      </Card>
+    </div>
   );
 }

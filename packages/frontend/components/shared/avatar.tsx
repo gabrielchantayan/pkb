@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
 
 interface AvatarProps {
-  name: string;
+  name?: string;
   url?: string | null;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
@@ -48,11 +48,13 @@ function get_color(name: string): string {
 }
 
 export function Avatar({ name, url, size = 'md', className }: AvatarProps) {
+  const display_name = name || '?';
+
   if (url) {
     return (
       <img
         src={url}
-        alt={name}
+        alt={display_name}
         className={cn(
           'rounded-full object-cover',
           size_classes[size],
@@ -67,11 +69,11 @@ export function Avatar({ name, url, size = 'md', className }: AvatarProps) {
       className={cn(
         'rounded-full flex items-center justify-center text-white font-medium',
         size_classes[size],
-        get_color(name),
+        get_color(display_name),
         className
       )}
     >
-      {get_initials(name)}
+      {get_initials(display_name)}
     </div>
   );
 }

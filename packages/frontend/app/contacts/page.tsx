@@ -7,7 +7,8 @@ import { ContactFilters } from '@/components/contacts/contact-filters';
 import { AddContactDialog } from '@/components/contacts/contact-form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search } from 'lucide-react';
+import { Search, Users } from 'lucide-react';
+import Link from 'next/link';
 
 export default function ContactsPage() {
   const [search, set_search] = useState('');
@@ -23,7 +24,13 @@ export default function ContactsPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Contacts</h1>
-        <AddContactDialog />
+        <div className="flex items-center gap-2">
+          <Button variant="outline" render={<Link href="/contacts/duplicates" />}>
+            <Users className="w-4 h-4 mr-1" />
+            Find Duplicates
+          </Button>
+          <AddContactDialog />
+        </div>
       </div>
 
       <div className="flex gap-4">

@@ -9,7 +9,6 @@ import { SearchFilters } from '@/components/search/search-filters';
 import { SearchResults } from '@/components/search/search-results';
 import { Search as SearchIcon, Sparkles } from 'lucide-react';
 import { debounce } from '@/lib/utils';
-import { AppLayout } from '@/components/layout/app-layout';
 
 export default function SearchPage() {
   const [query, set_query] = useState('');
@@ -33,8 +32,7 @@ export default function SearchPage() {
   const debounced_search = useCallback(debounce((q: string) => set_query(q), 300), []);
 
   return (
-    <AppLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <h1 className="text-3xl font-bold">Search</h1>
 
         <div className="flex gap-4">
@@ -104,7 +102,6 @@ export default function SearchPage() {
             <p>Enter at least 2 characters to search</p>
           </div>
         )}
-      </div>
-    </AppLayout>
+    </div>
   );
 }

@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Sparkles, Send, Loader2 } from 'lucide-react';
-import { AppLayout } from '@/components/layout/app-layout';
 
 const EXAMPLE_QUERIES = [
   "When is John's birthday?",
@@ -34,8 +33,7 @@ export default function AiQueryPage() {
   }
 
   return (
-    <AppLayout>
-      <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto space-y-6">
         <div className="text-center space-y-2">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full">
             <Sparkles className="w-5 h-5 text-primary" />
@@ -136,7 +134,6 @@ export default function AiQueryPage() {
             </CardContent>
           </Card>
         )}
-      </div>
-    </AppLayout>
+    </div>
   );
 }

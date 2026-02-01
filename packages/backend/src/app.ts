@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import cookie_parser from 'cookie-parser';
 import { logging_middleware } from './middleware/logging.js';
 import { error_middleware } from './middleware/error.js';
@@ -16,11 +17,17 @@ import smartlists_router from './routes/smartlists.js';
 import sync_router from './routes/sync.js';
 import search_router from './routes/search.js';
 import ai_router from './routes/ai.js';
+import dashboard_router from './routes/dashboard.js';
 
 export function create_app(): express.Application {
   const app = express();
 
-  app.use(express.json());
+  app.use(cors({
+    origin: 'http://localhost:3000',
+    credentials: true,
+  }));
+  app.use(express.json({ limit: '100mb' }));
+  app.use(express.urlencoded({ limit: '100mb', extended: true }));
   app.use(cookie_parser());
   app.use(logging_middleware);
 
@@ -63,6 +70,9 @@ export function create_app(): express.Application {
 
   // AI routes
   app.use('/api', ai_router);
+
+  // Dashboard routes
+  app.use('/api', dashboard_router);
 
   app.use(error_middleware);
 

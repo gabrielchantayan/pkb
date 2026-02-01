@@ -1,5 +1,10 @@
+# =============================================================================
 # Dependencies
+# =============================================================================
 node_modules/
+.pnp
+.pnp.js
+.pnp.cjs
 .yarn/*
 !.yarn/patches
 !.yarn/plugins
@@ -7,32 +12,178 @@ node_modules/
 !.yarn/sdks
 !.yarn/versions
 
-# Build outputs
+# =============================================================================
+# Build Outputs
+# =============================================================================
+
+# Node.js / TypeScript
 dist/
+build/
+*.tsbuildinfo
+
+# Next.js
 .next/
 out/
+.vercel
 
-# Environment
+# Go
+daemon/build/
+daemon/bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# =============================================================================
+# Environment & Secrets
+# =============================================================================
 .env
 .env.local
-.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+*.pem
+*.key
+credentials.json
+token.json
 
-# IDE
-.idea/
+# =============================================================================
+# Database & Data
+# =============================================================================
+data/
+attachments/
+*.sqlite
+*.sqlite3
+*.db
+pgdata/
+
+# =============================================================================
+# IDE & Editors
+# =============================================================================
+
+# VS Code
 .vscode/
+*.code-workspace
+
+# JetBrains (IntelliJ, GoLand, WebStorm)
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Vim/Neovim
 *.swp
 *.swo
+*.swn
+*~
+.netrwhist
+Session.vim
+.nvimlog
 
-# OS
+# Emacs
+*~
+\#*\#
+.#*
+*.elc
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# =============================================================================
+# Operating System
+# =============================================================================
+
+# macOS
 .DS_Store
-Thumbs.db
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
 
-# Logs
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# =============================================================================
+# Logs & Debugging
+# =============================================================================
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+*.log.*
 
-# Data
-data/
-attachments/
+# =============================================================================
+# Testing & Coverage
+# =============================================================================
+coverage/
+.nyc_output/
+*.lcov
+.coverage
+htmlcov/
+test-results/
+playwright-report/
+junit.xml
+
+# =============================================================================
+# Package Manager Locks (keep only one)
+# =============================================================================
+# Using Yarn, so ignore others
+package-lock.json
+pnpm-lock.yaml
+bun.lockb
+
+# =============================================================================
+# Miscellaneous
+# =============================================================================
+
+# Turborepo
+.turbo/
+
+# Docker
+docker-compose.override.yml
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Cache directories
+.cache/
+.eslintcache
+.stylelintcache
+.prettiercache
+*.cache
+
+# Debug
+*.pid
+*.seed
+*.pid.lock
+
+# Optional: Local analysis/notes files
+CODEBASE_ANALYSIS.md
+TODO.md
+NOTES.md
+SCRATCH.md

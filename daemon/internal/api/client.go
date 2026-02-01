@@ -122,7 +122,48 @@ type BatchError struct {
 	Error string `json:"error"`
 }
 
+// maxBatchSize is the maximum number of communications the backend accepts per request
+const maxBatchSize = 100
+
 func (c *Client) BatchUpsert(comms []Communication) (*BatchUpsertResponse, error) {
+	// Chunk into batches of maxBatchSize to respect backend limits
+	if len(comms) > maxBatchSize {
+		return c.batchUpsertChunked(comms)
+	}
+
+	return c.batchUpsertSingle(comms)
+}
+
+func (c *Client) batchUpsertChunked(comms []Communication) (*BatchUpsertResponse, error) {
+	var totalResult BatchUpsertResponse
+
+	for i := 0; i < len(comms); i += maxBatchSize {
+		end := i + maxBatchSize
+		if end > len(comms) {
+			end = len(comms)
+		}
+		chunk := comms[i:end]
+
+		result, err := c.batchUpsertSingle(chunk)
+		if err != nil {
+			return nil, err
+		}
+
+		totalResult.Inserted += result.Inserted
+		totalResult.Updated += result.Updated
+		// Adjust error indices to reflect position in original array
+		for _, e := range result.Errors {
+			totalResult.Errors = append(totalResult.Errors, BatchError{
+				Index: e.Index + i,
+				Error: e.Error,
+			})
+		}
+	}
+
+	return &totalResult, nil
+}
+
+func (c *Client) batchUpsertSingle(comms []Communication) (*BatchUpsertResponse, error) {
 	body, err := json.Marshal(BatchUpsertRequest{Communications: comms})
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)

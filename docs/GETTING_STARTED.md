@@ -43,6 +43,23 @@ The easiest way to run the PKB (Frontend, Backend, and Database) is via Docker C
     *   Frontend: [http://localhost:3000](http://localhost:3000)
     *   Backend API: [http://localhost:4000](http://localhost:4000)
 
+## Creating Your First Account
+
+PKB uses a seed script to create the initial user account. Run the following command with your desired email and password:
+
+```bash
+# Load .env variables and run the seed
+export $(cat .env | xargs) && ADMIN_EMAIL=your@email.com ADMIN_PASSWORD=your-secure-password yarn workspace @pkb/backend db:seed
+```
+
+**Notes:**
+- `DATABASE_URL` must be available (from `.env` or exported)
+- If `ADMIN_EMAIL` is not set, it defaults to `admin@localhost`
+- `ADMIN_PASSWORD` is required
+- The seed script only creates a user if no users exist yet. If a user already exists, it skips creation.
+
+After seeding, you can log in at [http://localhost:3000](http://localhost:3000) with your credentials.
+
 ## Manual Setup (Local Development)
 
 If you prefer to run services individually for development:

@@ -5,7 +5,7 @@ FROM base AS deps
 WORKDIR /app
 
 # Copy workspace root files
-COPY package.json yarn.lock* ./
+COPY package.json yarn.lock* tsconfig.base.json .yarnrc.yml ./
 COPY packages/shared ./packages/shared
 COPY packages/frontend ./packages/frontend
 
@@ -20,7 +20,12 @@ RUN yarn build
 FROM base AS builder
 WORKDIR /app
 
+RUN corepack enable && corepack prepare yarn@4.6.0 --activate
+
 COPY --from=deps /app ./
+
+# Reinstall to fix PnP paths after copy
+RUN yarn install
 
 WORKDIR /app/packages/frontend
 RUN yarn build
@@ -34,9 +39,9 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-COPY --from=builder /app/packages/frontend/public ./public
+COPY --from=builder /app/packages/frontend/public ./packages/frontend/public
 COPY --from=builder --chown=nextjs:nodejs /app/packages/frontend/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/packages/frontend/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/packages/frontend/.next/static ./packages/frontend/.next/static
 
 USER nextjs
 
@@ -45,4 +50,4 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "server.js"]
+CMD ["node", "packages/frontend/server.js"]

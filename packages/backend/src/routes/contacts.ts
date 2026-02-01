@@ -9,6 +9,7 @@ import {
   star_contact,
   find_duplicates,
   merge_contacts,
+  get_merge_preview,
 } from '../services/contacts.js';
 import {
   add_identifier,
@@ -161,6 +162,36 @@ router.post('/contacts/:id/star', require_auth, async (req, res) => {
     }
 
     res.json({ contact });
+  } catch {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get merge preview
+router.get('/contacts/:id/merge-preview/:sourceId', require_auth, async (req, res) => {
+  try {
+    const { id, sourceId } = req.params;
+
+    const id_result = uuid_param_schema.safeParse({ id });
+    const source_id_result = uuid_param_schema.safeParse({ id: sourceId });
+
+    if (!id_result.success || !source_id_result.success) {
+      res.status(400).json({ error: 'Invalid contact ID' });
+      return;
+    }
+
+    if (id === sourceId) {
+      res.status(400).json({ error: 'Cannot preview merge of contact with itself' });
+      return;
+    }
+
+    const preview = await get_merge_preview(id_result.data.id, source_id_result.data.id);
+    if (!preview) {
+      res.status(404).json({ error: 'One or both contacts not found' });
+      return;
+    }
+
+    res.json(preview);
   } catch {
     res.status(500).json({ error: 'Internal server error' });
   }

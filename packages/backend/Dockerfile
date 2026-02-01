@@ -3,7 +3,7 @@ FROM node:22-alpine
 WORKDIR /app
 
 # Copy workspace root files
-COPY package.json yarn.lock* ./
+COPY package.json yarn.lock* tsconfig.base.json ./
 COPY packages/shared ./packages/shared
 COPY packages/backend ./packages/backend
 

@@ -56,32 +56,34 @@ async function run_migration(filename: string): Promise<void> {
   }
 }
 
-async function migrate(): Promise<void> {
-  try {
-    logger.info('starting migrations');
+export async function run_migrations(): Promise<void> {
+  logger.info('starting migrations');
 
-    await ensure_migrations_table();
-    const applied = await get_applied_migrations();
-    const pending = await get_pending_migrations(applied);
+  await ensure_migrations_table();
+  const applied = await get_applied_migrations();
+  const pending = await get_pending_migrations(applied);
 
-    if (pending.length === 0) {
-      logger.info('no pending migrations');
-      return;
-    }
-
-    logger.info('pending migrations', { count: pending.length, files: pending });
-
-    for (const filename of pending) {
-      await run_migration(filename);
-    }
-
-    logger.info('migrations complete', { applied: pending.length });
-  } finally {
-    await close_pool();
+  if (pending.length === 0) {
+    logger.info('no pending migrations');
+    return;
   }
+
+  logger.info('pending migrations', { count: pending.length, files: pending });
+
+  for (const filename of pending) {
+    await run_migration(filename);
+  }
+
+  logger.info('migrations complete', { applied: pending.length });
 }
 
-migrate().catch((err) => {
-  logger.error('migration failed', { error: err.message, stack: err.stack });
-  process.exit(1);
-});
+// Run directly if this is the main module
+const is_main = process.argv[1]?.endsWith('migrate.ts') || process.argv[1]?.endsWith('migrate.js');
+if (is_main) {
+  run_migrations()
+    .then(() => close_pool())
+    .catch((err) => {
+      logger.error('migration failed', { error: err.message, stack: err.stack });
+      process.exit(1);
+    });
+}

@@ -180,6 +180,28 @@ export interface ContactDetailResponse {
   groups: Array<{ id: string; name: string }>;
 }
 
+export interface DuplicateSuggestion {
+  contacts: [Contact, Contact];
+  confidence: number;
+  reason: 'same_email' | 'same_phone' | 'similar_name';
+}
+
+export interface MergePreview {
+  target: Contact;
+  source: Contact;
+  target_identifiers: Identifier[];
+  source_identifiers: Identifier[];
+  counts: {
+    identifiers: number;
+    communications: number;
+    facts: number;
+    notes: number;
+    followups: number;
+    tags: number;
+    groups: number;
+  };
+}
+
 class ApiClient {
   private token: string | null = null;
 
@@ -267,6 +289,21 @@ class ApiClient {
     return this.fetch_json(`/api/contacts/${id}/star`, {
       method: 'POST',
       body: JSON.stringify({ starred }),
+    });
+  }
+
+  get_duplicates(): Promise<{ duplicates: DuplicateSuggestion[] }> {
+    return this.fetch_json('/api/contacts/duplicates');
+  }
+
+  get_merge_preview(target_id: string, source_id: string): Promise<MergePreview> {
+    return this.fetch_json(`/api/contacts/${target_id}/merge-preview/${source_id}`);
+  }
+
+  merge_contacts(target_id: string, source_id: string): Promise<{ contact: Contact }> {
+    return this.fetch_json(`/api/contacts/${target_id}/merge`, {
+      method: 'POST',
+      body: JSON.stringify({ mergeContactId: source_id }),
     });
   }
 

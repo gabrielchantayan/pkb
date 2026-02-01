@@ -45,6 +45,14 @@ export async function require_api_key(req: Request, res: Response, next: NextFun
     return;
   }
 
+  // Check service API key from environment (for daemon/service-to-service auth)
+  const service_api_key = process.env.API_KEY;
+  if (service_api_key && api_key === service_api_key) {
+    next();
+    return;
+  }
+
+  // Fall back to database lookup for user-generated API keys
   try {
     const pool = get_pool();
     const key_hash = hash_api_key(api_key);

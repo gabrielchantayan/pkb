@@ -335,28 +335,55 @@ func (m *Manager) syncContactsSource(ctx context.Context, src ContactsSource) er
 		}
 	}
 
-	// Send to backend
-	result, err := m.client.ImportContacts(apiImports)
-	if err != nil {
-		// Queue the failed request for retry
-		m.enqueueOnError(queue.RequestTypeImportContacts, api.ContactsImportRequest{Contacts: apiImports}, err)
+	// Send in batches of 50 to avoid payload size issues
+	const batchSize = 50
+	totalCreated, totalUpdated, totalMerged, totalErrors := 0, 0, 0, 0
 
-		if api.IsTemporaryError(err) {
-			log.Warn().
-				Err(err).
-				Str("source", src.Name()).
-				Int("count", len(apiImports)).
-				Msg("Contacts import queued for retry due to temporary error")
+	for i := 0; i < len(apiImports); i += batchSize {
+		end := i + batchSize
+		if end > len(apiImports) {
+			end = len(apiImports)
 		}
-		return err
+		batch := apiImports[i:end]
+
+		result, err := m.client.ImportContacts(batch)
+		if err != nil {
+			m.enqueueOnError(queue.RequestTypeImportContacts, api.ContactsImportRequest{Contacts: batch}, err)
+			if api.IsTemporaryError(err) {
+				log.Warn().
+					Err(err).
+					Str("source", src.Name()).
+					Int("count", len(batch)).
+					Msg("Contacts batch queued for retry")
+			}
+			continue
+		}
+
+		totalCreated += result.Created
+		totalUpdated += result.Updated
+		totalMerged += result.Merged
+		totalErrors += len(result.Errors)
+
+		// Log individual errors for debugging
+		for _, e := range result.Errors {
+			contactName := ""
+			if e.Index >= 0 && e.Index < len(batch) {
+				contactName = batch[e.Index].DisplayName
+			}
+			log.Warn().
+				Int("index", e.Index).
+				Str("contact", contactName).
+				Str("error", e.Error).
+				Msg("Contact import error")
+		}
 	}
 
 	log.Info().
 		Str("source", src.Name()).
-		Int("created", result.Created).
-		Int("updated", result.Updated).
-		Int("merged", result.Merged).
-		Int("errors", len(result.Errors)).
+		Int("created", totalCreated).
+		Int("updated", totalUpdated).
+		Int("merged", totalMerged).
+		Int("errors", totalErrors).
 		Msg("Contacts synced")
 
 	return nil

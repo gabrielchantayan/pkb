@@ -21,7 +21,7 @@ function get_gen_ai(): GoogleGenerativeAI {
 function get_flash_model(): GenerativeModel {
   if (!flash_model) {
     flash_model = get_gen_ai().getGenerativeModel({
-      model: process.env.GEMINI_FLASH_MODEL || 'gemini-1.5-flash',
+      model: process.env.GEMINI_FLASH_MODEL || 'gemini-2.5-flash',
     });
   }
   return flash_model;
@@ -30,7 +30,7 @@ function get_flash_model(): GenerativeModel {
 function get_pro_model(): GenerativeModel {
   if (!pro_model) {
     pro_model = get_gen_ai().getGenerativeModel({
-      model: process.env.GEMINI_PRO_MODEL || 'gemini-1.5-pro',
+      model: process.env.GEMINI_PRO_MODEL || 'gemini-2.5-pro',
     });
   }
   return pro_model;
@@ -83,5 +83,8 @@ export async function generate_embeddings(texts: string[]): Promise<(number[] | 
 }
 
 export function is_ai_available(): boolean {
+  if (process.env.AI_ENABLED === 'false') {
+    return false;
+  }
   return config.gemini_api_key !== null;
 }

@@ -7,12 +7,10 @@ import { GroupsSettings } from '@/components/settings/groups';
 import { SmartListsSettings } from '@/components/settings/smart-lists';
 import { ApiKeysSettings } from '@/components/settings/api-keys';
 import { BlocklistSettings } from '@/components/settings/blocklist';
-import { AppLayout } from '@/components/layout/app-layout';
 
 export default function SettingsPage() {
   return (
-    <AppLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <h1 className="text-3xl font-bold">Settings</h1>
 
         <Tabs defaultValue="profile">
@@ -49,7 +47,6 @@ export default function SettingsPage() {
             <BlocklistSettings />
           </TabsContent>
         </Tabs>
-      </div>
-    </AppLayout>
+    </div>
   );
 }

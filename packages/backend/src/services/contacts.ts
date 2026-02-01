@@ -27,6 +27,22 @@ export interface DuplicateSuggestion {
   reason: 'same_email' | 'same_phone' | 'similar_name';
 }
 
+export interface MergePreview {
+  target: Contact;
+  source: Contact;
+  target_identifiers: ContactIdentifier[];
+  source_identifiers: ContactIdentifier[];
+  counts: {
+    identifiers: number;
+    communications: number;
+    facts: number;
+    notes: number;
+    followups: number;
+    tags: number;
+    groups: number;
+  };
+}
+
 const SORT_COLUMNS: Record<string, string> = {
   name: 'c.display_name',
   last_contact: 'c.updated_at',
@@ -412,6 +428,63 @@ export async function find_duplicates(): Promise<DuplicateSuggestion[]> {
   return duplicates;
 }
 
+export async function get_merge_preview(target_id: string, source_id: string): Promise<MergePreview | null> {
+  // Get both contacts
+  const contacts_result = await query<Contact>(
+    'SELECT * FROM contacts WHERE id IN ($1, $2) AND deleted_at IS NULL',
+    [target_id, source_id]
+  );
+
+  if (contacts_result.rows.length !== 2) {
+    return null;
+  }
+
+  const target = contacts_result.rows.find((c) => c.id === target_id)!;
+  const source = contacts_result.rows.find((c) => c.id === source_id)!;
+
+  // Get identifiers for both
+  const [target_identifiers_result, source_identifiers_result] = await Promise.all([
+    query<ContactIdentifier>('SELECT * FROM contact_identifiers WHERE contact_id = $1', [target_id]),
+    query<ContactIdentifier>('SELECT * FROM contact_identifiers WHERE contact_id = $1', [source_id]),
+  ]);
+
+  // Count what will be merged from source
+  const [communications_count, facts_count, notes_count, followups_count, tags_count, groups_count] = await Promise.all([
+    query<{ count: string }>('SELECT COUNT(*) as count FROM communications WHERE contact_id = $1', [source_id]),
+    query<{ count: string }>('SELECT COUNT(*) as count FROM facts WHERE contact_id = $1 AND deleted_at IS NULL', [source_id]),
+    query<{ count: string }>('SELECT COUNT(*) as count FROM notes WHERE contact_id = $1', [source_id]),
+    query<{ count: string }>('SELECT COUNT(*) as count FROM followups WHERE contact_id = $1', [source_id]),
+    query<{ count: string }>(
+      `SELECT COUNT(*) as count FROM contact_tags
+       WHERE contact_id = $1
+       AND tag_id NOT IN (SELECT tag_id FROM contact_tags WHERE contact_id = $2)`,
+      [source_id, target_id]
+    ),
+    query<{ count: string }>(
+      `SELECT COUNT(*) as count FROM contact_groups
+       WHERE contact_id = $1
+       AND group_id NOT IN (SELECT group_id FROM contact_groups WHERE contact_id = $2)`,
+      [source_id, target_id]
+    ),
+  ]);
+
+  return {
+    target,
+    source,
+    target_identifiers: target_identifiers_result.rows,
+    source_identifiers: source_identifiers_result.rows,
+    counts: {
+      identifiers: source_identifiers_result.rows.length,
+      communications: parseInt(communications_count.rows[0].count, 10),
+      facts: parseInt(facts_count.rows[0].count, 10),
+      notes: parseInt(notes_count.rows[0].count, 10),
+      followups: parseInt(followups_count.rows[0].count, 10),
+      tags: parseInt(tags_count.rows[0].count, 10),
+      groups: parseInt(groups_count.rows[0].count, 10),
+    },
+  };
+}
+
 export async function merge_contacts(target_id: string, source_id: string): Promise<Contact | null> {
   const pool = get_pool();
   const client = await pool.connect();
@@ -595,11 +668,30 @@ export async function batch_import_contacts(
         }
 
         if (existing_contact_id) {
-          // Update existing contact
-          await client.query(
-            `UPDATE contacts SET updated_at = NOW() WHERE id = $1`,
+          // Update existing contact - also update display_name if we have a better one
+          // (i.e., the current name is empty or just looks like a phone/email)
+          const current = await client.query<{ display_name: string }>(
+            `SELECT display_name FROM contacts WHERE id = $1`,
             [existing_contact_id]
           );
+          const current_name = current.rows[0]?.display_name || '';
+          const should_update_name =
+            !current_name ||
+            current_name.startsWith('+') ||
+            current_name.match(/^\d+$/) ||
+            current_name.includes('@');
+
+          if (should_update_name && contact.display_name) {
+            await client.query(
+              `UPDATE contacts SET display_name = $1, updated_at = NOW() WHERE id = $2`,
+              [contact.display_name, existing_contact_id]
+            );
+          } else {
+            await client.query(
+              `UPDATE contacts SET updated_at = NOW() WHERE id = $1`,
+              [existing_contact_id]
+            );
+          }
 
           // Add any new identifiers
           for (const id of all_identifiers) {

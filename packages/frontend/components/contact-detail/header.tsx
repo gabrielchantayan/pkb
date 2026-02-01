@@ -1,11 +1,22 @@
 'use client';
 
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Contact, Identifier } from '@/lib/api';
 import { useStarContact } from '@/lib/hooks/use-contacts';
 import { Avatar } from '@/components/shared/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Star, Mail, Phone, ArrowLeft } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { MergeDialog } from '@/components/contacts/merge-dialog';
+import { ContactPickerDialog } from '@/components/contacts/contact-picker-dialog';
+import { Star, Mail, Phone, ArrowLeft, MoreHorizontal, Merge } from 'lucide-react';
 import Link from 'next/link';
 
 interface ContactHeaderProps {
@@ -16,10 +27,21 @@ interface ContactHeaderProps {
 }
 
 export function ContactHeader({ contact, identifiers, tags, groups }: ContactHeaderProps) {
+  const router = useRouter();
   const { mutate: star_contact, isPending } = useStarContact();
+  const [picker_open, set_picker_open] = useState(false);
+  const [merge_source, set_merge_source] = useState<Contact | null>(null);
 
   const emails = identifiers.filter((i) => i.type === 'email');
   const phones = identifiers.filter((i) => i.type === 'phone');
+
+  function handle_merge_select(source: Contact) {
+    set_merge_source(source);
+  }
+
+  function handle_merge_success() {
+    router.refresh();
+  }
 
   return (
     <div className="space-y-4">
@@ -49,6 +71,17 @@ export function ContactHeader({ contact, identifiers, tags, groups }: ContactHea
                 }`}
               />
             </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
+                <MoreHorizontal className="w-5 h-5" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => set_picker_open(true)}>
+                  <Merge className="w-4 h-4" />
+                  Merge with...
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           <div className="flex flex-wrap gap-4 mt-2 text-sm text-muted-foreground">
@@ -86,6 +119,25 @@ export function ContactHeader({ contact, identifiers, tags, groups }: ContactHea
           )}
         </div>
       </div>
+
+      <ContactPickerDialog
+        open={picker_open}
+        on_close={() => set_picker_open(false)}
+        on_select={handle_merge_select}
+        exclude_id={contact.id}
+        title="Merge with..."
+        description="Select a contact to merge into this one."
+      />
+
+      {merge_source && (
+        <MergeDialog
+          open={!!merge_source}
+          on_close={() => set_merge_source(null)}
+          target={contact}
+          source={merge_source}
+          on_success={handle_merge_success}
+        />
+      )}
     </div>
   );
 }

@@ -3,13 +3,16 @@ package contacts
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/rs/zerolog/log"
 
 	"pkb-daemon/internal/config"
 )
@@ -51,16 +54,135 @@ type Fact struct {
 	Value string
 }
 
-// SyncContacts fetches all contacts from the AddressBook database
+// SyncContacts fetches all contacts - tries AppleScript first, falls back to SQLite
 // Contacts are synced differently - they create/update contacts, not communications
 func (s *Source) SyncContacts(ctx context.Context) ([]ContactImport, error) {
+	// Try AppleScript first (works with iCloud contacts)
+	imports, err := s.syncContactsViaAppleScript(ctx)
+	if err != nil {
+		log.Warn().Err(err).Msg("AppleScript contacts sync failed, falling back to SQLite")
+		return s.syncContactsViaSQLite(ctx)
+	}
+	return imports, nil
+}
+
+// syncContactsViaAppleScript uses JXA to read contacts from Contacts.app
+func (s *Source) syncContactsViaAppleScript(ctx context.Context) ([]ContactImport, error) {
+	// JXA script to export contacts as JSON
+	script := `
+		const app = Application('Contacts');
+		const people = app.people();
+		const contacts = [];
+
+		for (let i = 0; i < people.length; i++) {
+			const p = people[i];
+			const contact = {
+				id: p.id(),
+				firstName: p.firstName() || '',
+				lastName: p.lastName() || '',
+				organization: p.organization() || '',
+				jobTitle: p.jobTitle() || '',
+				note: p.note() || '',
+				phones: [],
+				emails: []
+			};
+
+			// Get phone numbers
+			const phones = p.phones();
+			for (let j = 0; j < phones.length; j++) {
+				contact.phones.push(phones[j].value());
+			}
+
+			// Get emails
+			const emails = p.emails();
+			for (let j = 0; j < emails.length; j++) {
+				contact.emails.push(emails[j].value());
+			}
+
+			// Only include contacts with contact info
+			if (contact.phones.length > 0 || contact.emails.length > 0) {
+				contacts.push(contact);
+			}
+		}
+
+		JSON.stringify(contacts);
+	`
+
+	cmd := exec.CommandContext(ctx, "osascript", "-l", "JavaScript", "-e", script)
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to run AppleScript: %w", err)
+	}
+
+	// Parse JSON output
+	var jsContacts []struct {
+		ID           string   `json:"id"`
+		FirstName    string   `json:"firstName"`
+		LastName     string   `json:"lastName"`
+		Organization string   `json:"organization"`
+		JobTitle     string   `json:"jobTitle"`
+		Note         string   `json:"note"`
+		Phones       []string `json:"phones"`
+		Emails       []string `json:"emails"`
+	}
+
+	if err := json.Unmarshal(output, &jsContacts); err != nil {
+		return nil, fmt.Errorf("failed to parse contacts JSON: %w", err)
+	}
+
+	var imports []ContactImport
+	for _, c := range jsContacts {
+		displayName := strings.TrimSpace(c.FirstName + " " + c.LastName)
+		if displayName == "" {
+			displayName = c.Organization
+		}
+		if displayName == "" {
+			continue
+		}
+
+		contact := ContactImport{
+			SourceID:    "contacts:" + c.ID,
+			DisplayName: displayName,
+			Note:        c.Note,
+		}
+
+		// Normalize emails
+		for _, email := range c.Emails {
+			contact.Emails = append(contact.Emails, strings.ToLower(email))
+		}
+
+		// Normalize phones
+		for _, phone := range c.Phones {
+			normalized := normalizePhone(phone)
+			if normalized != "" {
+				contact.Phones = append(contact.Phones, normalized)
+			}
+		}
+
+		// Add facts
+		if c.Organization != "" {
+			contact.Facts = append(contact.Facts, Fact{Type: "company", Value: c.Organization})
+		}
+		if c.JobTitle != "" {
+			contact.Facts = append(contact.Facts, Fact{Type: "job_title", Value: c.JobTitle})
+		}
+
+		imports = append(imports, contact)
+	}
+
+	log.Info().Int("count", len(imports)).Msg("Fetched contacts via AppleScript")
+	return imports, nil
+}
+
+// syncContactsViaSQLite fetches contacts from the local AddressBook database
+func (s *Source) syncContactsViaSQLite(ctx context.Context) ([]ContactImport, error) {
 	db, err := sql.Open("sqlite3", s.dbPath+"?mode=ro")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open AddressBook database: %w", err)
 	}
 	defer db.Close()
 
-	// Query contacts
+	// Query contacts (ZFIRSTNAME or ZLASTNAME indicates person records)
 	query := `
 		SELECT
 			r.Z_PK,
@@ -71,7 +193,7 @@ func (s *Source) SyncContacts(ctx context.Context) ([]ContactImport, error) {
 			r.ZBIRTHDAY,
 			r.ZNOTE
 		FROM ZABCDRECORD r
-		WHERE r.Z_ENT = 9
+		WHERE r.ZFIRSTNAME IS NOT NULL OR r.ZLASTNAME IS NOT NULL OR r.ZORGANIZATION IS NOT NULL
 	`
 
 	rows, err := db.QueryContext(ctx, query)
