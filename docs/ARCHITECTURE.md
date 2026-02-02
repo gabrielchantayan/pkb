@@ -14,6 +14,18 @@ graph TD
     Daemon --> LocalSources[Local Data (iMessage, Calendar)]
 ```
 
+## Tech Stack
+
+| Component | Technology |
+|-----------|------------|
+| Frontend | Next.js 16, React 19, Tailwind CSS 4, shadcn/ui, React Query |
+| Backend | Express 5, TypeScript, Zod |
+| Database | PostgreSQL 16 with pgvector extension |
+| AI | Google Gemini (embeddings, extraction, chat) |
+| Daemon | Go 1.22+ |
+| Container | Docker & Docker Compose |
+| Package Manager | Yarn 4 (Workspaces) |
+
 ## Components
 
 ### 1. Frontend (`packages/frontend`)

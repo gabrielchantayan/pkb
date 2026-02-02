@@ -31,7 +31,10 @@ A CRM that automatically syncs with my contacts, iMessage, and social media, and
 - **Privacy-First** - All data stays on your infrastructure; nothing is sent to third parties except the configured AI provider
 
 
-## Further Reading:
+## Further Reading
 
-[Installation Guide](/docs/INSTALLATION.md)
-[Architecture](/docs/ARCHITECTURE.md)
+- [Getting Started](docs/GETTING_STARTED.md) - Installation and setup
+- [Architecture](docs/ARCHITECTURE.md) - System design and tech stack
+- [Usage Guide](docs/USAGE.md) - Using the app and daemon
+- [Development](docs/DEVELOPMENT.md) - Local dev setup and contributing
+- [API Reference](docs/API.md) - REST API documentation

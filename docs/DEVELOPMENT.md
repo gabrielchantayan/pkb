@@ -2,18 +2,55 @@
 
 ## Project Structure
 
-*   `packages/backend`: API Server (Express)
-*   `packages/frontend`: Web App (Next.js)
-*   `packages/shared`: Shared Types & Logic
-*   `daemon`: Go Sync Client
+```
+pkb/
+├── packages/
+│   ├── backend/          # Express API server
+│   │   ├── src/
+│   │   │   ├── routes/   # API endpoints
+│   │   │   ├── services/ # Business logic
+│   │   │   ├── db/       # Database migrations & queries
+│   │   │   └── middleware/
+│   │   └── package.json
+│   │
+│   ├── frontend/         # Next.js application
+│   │   ├── app/          # App router pages
+│   │   ├── components/   # React components
+│   │   └── lib/          # Utilities & hooks
+│   │
+│   └── shared/           # Shared types & utilities
+│
+├── daemon/               # Go data sync daemon
+│   ├── cmd/              # Entry points
+│   └── internal/         # Internal packages
+│       ├── sources/      # Data source implementations
+│       ├── sync/         # Sync orchestration
+│       └── api/          # Backend API client
+│
+├── docs/                 # Documentation
+├── docker-compose.yml    # Container orchestration
+└── package.json          # Root workspace config
+```
 
-## Common Commands
+## Available Scripts
 
 Run these from the root directory:
 
-*   **Install Dependencies:** `yarn install`
-*   **Run Dev Server:** `yarn dev` (starts both frontend and backend in watch mode)
-*   **Build:** `yarn build`
+```bash
+# Development
+yarn install          # Install all dependencies
+yarn dev              # Start all services in dev mode
+yarn build            # Build all packages
+
+# Database
+yarn db:migrate       # Run database migrations
+yarn db:seed          # Seed initial admin user
+
+# Individual packages
+yarn workspace @pkb/backend dev     # Backend only
+yarn workspace @pkb/frontend dev    # Frontend only
+yarn workspace @pkb/backend test    # Run backend tests
+```
 
 ## Backend Development
 

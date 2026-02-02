@@ -15,6 +15,25 @@ Once the application is running (see [GETTING_STARTED.md](./GETTING_STARTED.md))
 
 The core value of PKB comes from the data it ingests. The **Daemon** is responsible for this.
 
+### Supported Data Sources
+
+| Source | Description | Requirements |
+|--------|-------------|--------------|
+| **iMessage** | Messages from iMessage/SMS | Full Disk Access permission |
+| **Contacts** | Apple Contacts | Contacts access permission |
+| **Gmail** | Email from Gmail | OAuth credentials |
+| **Calendar** | Google & Apple Calendar | Calendar access permission |
+| **Phone Calls** | Call history | Full Disk Access permission |
+| **Notes** | Apple Notes | Notes access permission |
+
+### macOS Permissions
+
+The daemon requires specific macOS permissions to access data:
+
+1. **System Preferences > Privacy & Security > Full Disk Access** - Add Terminal or your IDE
+2. **System Preferences > Privacy & Security > Contacts** - Grant access when prompted
+3. **System Preferences > Privacy & Security > Calendars** - Grant access when prompted
+
 ### Configuration (`daemon/config.yaml`)
 Create a `config.yaml` file in the `daemon` directory:
 

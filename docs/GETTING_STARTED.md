@@ -27,6 +27,20 @@ GEMINI_API_KEY=your-google-gemini-api-key
 DATABASE_URL=postgres://pkb:pkb@localhost:5432/pkb
 ```
 
+### Full Environment Variables Reference
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `DATABASE_URL` | PostgreSQL connection string | Yes |
+| `API_KEY` | API key for daemon authentication | Yes |
+| `JWT_SECRET` | Secret for JWT signing | Yes |
+| `GEMINI_API_KEY` | Google Gemini API key | Yes |
+| `PORT` | Backend server port (default: 4000) | No |
+| `NODE_ENV` | Environment (development/production) | No |
+| `AI_ENABLED` | Enable AI features (default: true) | No |
+| `STORAGE_TYPE` | Attachment storage type (local/s3) | No |
+| `STORAGE_PATH` | Local storage path | No |
+
 ## Quick Start (Docker)
 
 The easiest way to run the PKB (Frontend, Backend, and Database) is via Docker Compose.
@@ -97,3 +111,12 @@ go mod download
 go run cmd/daemon/main.go
 ```
 *Note: The daemon requires `config.yaml` to be configured. See [USAGE.md](./USAGE.md) for details.*
+
+## Security Considerations
+
+- All authentication uses JWT tokens
+- The daemon authenticates via API key
+- Sensitive data (passwords) are hashed with bcrypt
+- Environment variables should never be committed
+- Consider running behind a reverse proxy (nginx/caddy) in production
+- Enable HTTPS in production deployments
