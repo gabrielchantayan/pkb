@@ -12,10 +12,13 @@ import Link from 'next/link';
 
 export default function ContactsPage() {
   const [search, set_search] = useState('');
-  const [filters, set_filters] = useState<{ starred?: boolean; has_followup?: boolean }>({});
+  const [filters, set_filters] = useState<{ starred?: boolean; has_followup?: boolean; saved_only?: boolean }>({
+    saved_only: true,
+  });
 
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useContacts({
     search,
+    saved_only: filters.saved_only,
   });
 
   const contacts = data?.pages.flatMap((p) => p.contacts) || [];

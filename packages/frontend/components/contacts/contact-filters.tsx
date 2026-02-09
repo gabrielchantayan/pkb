@@ -8,12 +8,13 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { Filter, Star, Clock } from 'lucide-react';
+import { Filter, Star, Clock, UserX } from 'lucide-react';
 
 interface ContactFiltersProps {
   value: {
     starred?: boolean;
     has_followup?: boolean;
+    saved_only?: boolean;
   };
   on_change: (filters: ContactFiltersProps['value']) => void;
 }
@@ -33,6 +34,13 @@ export function ContactFilters({ value, on_change }: ContactFiltersProps) {
         )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuItem
+          onClick={() => on_change({ ...value, saved_only: !value.saved_only })}
+        >
+          <UserX className="w-4 h-4 mr-2" />
+          Hide unsaved #s
+          {value.saved_only && <span className="ml-auto">✓</span>}
+        </DropdownMenuItem>
         <DropdownMenuItem
           onClick={() => on_change({ ...value, starred: !value.starred })}
         >

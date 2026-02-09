@@ -85,6 +85,10 @@ export async function list_contacts(params: ListContactsQuery): Promise<ListCont
     param_index++;
   }
 
+  if (params.saved_only) {
+    conditions.push(`c.display_name !~ '^[\\+]?[0-9\\s\\-\\(\\)]+$' AND c.display_name NOT LIKE '%@%'`);
+  }
+
   if (params.cursor) {
     values.push(params.cursor);
     const sort_column = SORT_COLUMNS[params.sort] || 'c.display_name';

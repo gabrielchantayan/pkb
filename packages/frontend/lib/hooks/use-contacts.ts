@@ -4,16 +4,18 @@ import { api, Contact, ContactsResponse, DuplicateSuggestion, MergePreview } fro
 interface UseContactsParams {
   search?: string;
   limit?: number;
+  saved_only?: boolean;
 }
 
 export function useContacts(params: UseContactsParams = {}) {
   return useInfiniteQuery<ContactsResponse>({
-    queryKey: ['contacts', params.search],
+    queryKey: ['contacts', params.search, params.saved_only],
     queryFn: ({ pageParam }) =>
       api.get_contacts({
         search: params.search,
         cursor: pageParam as string | undefined,
-        limit: params.limit || 20,
+        limit: params.limit || 50,
+        saved_only: params.saved_only,
       }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last_page) => last_page.nextCursor ?? undefined,

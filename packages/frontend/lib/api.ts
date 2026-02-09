@@ -259,11 +259,12 @@ class ApiClient {
   }
 
   // Contacts
-  get_contacts(params: { search?: string; cursor?: string; limit?: number }): Promise<ContactsResponse> {
+  get_contacts(params: { search?: string; cursor?: string; limit?: number; saved_only?: boolean }): Promise<ContactsResponse> {
     const query = new URLSearchParams();
     if (params.search) query.set('search', params.search);
     if (params.cursor) query.set('cursor', params.cursor);
     if (params.limit) query.set('limit', String(params.limit));
+    if (params.saved_only !== undefined) query.set('saved_only', String(params.saved_only));
     return this.fetch_json(`/api/contacts?${query}`);
   }
 

@@ -35,6 +35,10 @@ export const list_contacts_query_schema = z.object({
     .string()
     .optional()
     .transform((val) => (val === 'true' ? true : val === 'false' ? false : undefined)),
+  saved_only: z
+    .string()
+    .optional()
+    .transform((val) => (val === 'true' ? true : val === 'false' ? false : undefined)),
   tag: z.string().uuid().optional(),
   group: z.string().uuid().optional(),
   sort: z.enum(['name', 'last_contact', 'engagement', 'created']).optional().default('name'),
