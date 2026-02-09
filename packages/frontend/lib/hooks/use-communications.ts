@@ -1,12 +1,11 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { api, CommunicationsResponse, Communication } from '@/lib/api';
+import { api, CommunicationsResponse } from '@/lib/api';
 
 interface UseCommunicationsParams {
   contact_id: string;
-  initial?: Communication[];
 }
 
-export function useCommunications({ contact_id, initial }: UseCommunicationsParams) {
+export function useCommunications({ contact_id }: UseCommunicationsParams) {
   return useInfiniteQuery<CommunicationsResponse>({
     queryKey: ['communications', contact_id],
     queryFn: ({ pageParam }) =>
@@ -15,12 +14,6 @@ export function useCommunications({ contact_id, initial }: UseCommunicationsPara
         cursor: pageParam as string | undefined,
       }),
     initialPageParam: undefined as string | undefined,
-    getNextPageParam: (last_page) => last_page.next_cursor ?? undefined,
-    initialData: initial
-      ? {
-          pages: [{ communications: initial, next_cursor: null }],
-          pageParams: [undefined],
-        }
-      : undefined,
+    getNextPageParam: (last_page) => last_page.nextCursor ?? undefined,
   });
 }

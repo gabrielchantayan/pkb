@@ -55,7 +55,7 @@ export default function ContactDetailPage() {
             </TabsList>
 
             <TabsContent value="timeline" className="mt-4">
-              <Timeline contact_id={contact.id} initial={recent_communications} />
+              <Timeline contact_id={contact.id} />
             </TabsContent>
 
             <TabsContent value="notes" className="mt-4">

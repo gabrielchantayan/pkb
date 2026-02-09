@@ -108,7 +108,7 @@ export interface Contact {
 
 export interface ContactsResponse {
   contacts: Contact[];
-  next_cursor: string | null;
+  nextCursor: string | null;
   total: number;
 }
 
@@ -144,7 +144,7 @@ export interface Communication {
 
 export interface CommunicationsResponse {
   communications: Communication[];
-  next_cursor: string | null;
+  nextCursor: string | null;
 }
 
 export interface Note {

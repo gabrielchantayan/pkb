@@ -16,7 +16,7 @@ export function useContacts(params: UseContactsParams = {}) {
         limit: params.limit || 20,
       }),
     initialPageParam: undefined as string | undefined,
-    getNextPageParam: (last_page) => last_page.next_cursor ?? undefined,
+    getNextPageParam: (last_page) => last_page.nextCursor ?? undefined,
   });
 }
 
