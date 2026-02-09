@@ -15,6 +15,10 @@ build-prod:
 run:
 	go run ./cmd/pkb-daemon -config config.yaml
 
+# Run with hot reload (requires air: go install github.com/air-verse/air@latest)
+dev:
+	air
+
 # Run with example config
 run-example:
 	go run ./cmd/pkb-daemon -config config.example.yaml

@@ -5,7 +5,7 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "docker compose up -d db && concurrently \"yarn workspace @pkb/backend dev\" \"yarn workspace @pkb/frontend dev\"",
+    "dev": "docker compose up -d db && concurrently \"yarn workspace @pkb/backend dev\" \"yarn workspace @pkb/frontend dev\" \"cd daemon && air\"",
     "build": "yarn workspaces foreach -pt run build",
     "db:migrate": "yarn workspace @pkb/backend db:migrate",
     "db:seed": "yarn workspace @pkb/backend db:seed"
