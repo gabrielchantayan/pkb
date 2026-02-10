@@ -28,7 +28,7 @@ export default function ContactsPage() {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Contacts</h1>
         <div className="flex items-center gap-2">
-          <Button variant="outline" render={<Link href="/contacts/duplicates" />}>
+          <Button variant="outline" nativeButton={false} render={<Link href="/contacts/duplicates" />}>
             <Users className="w-4 h-4 mr-1" />
             Find Duplicates
           </Button>
