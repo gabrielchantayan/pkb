@@ -1,11 +1,18 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Merriweather, Source_Sans_3 } from 'next/font/google';
 import './globals.css';
 import { QueryProvider } from '@/providers/query-provider';
 import { AuthProvider } from '@/providers/auth-provider';
 import { AppLayout } from '@/components/layout/app-layout';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
+const source_sans = Source_Sans_3({
+  subsets: ['latin'],
+  variable: '--font-sans',
+});
+const merriweather = Merriweather({
+  subsets: ['latin'],
+  variable: '--font-serif',
+});
 
 export const metadata: Metadata = {
   title: 'Personal Knowledge Base',
@@ -18,7 +25,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={`${source_sans.variable} ${merriweather.variable}`}>
       <body className="antialiased">
         <QueryProvider>
           <AuthProvider>
