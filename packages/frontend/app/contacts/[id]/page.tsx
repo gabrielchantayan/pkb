@@ -6,6 +6,7 @@ import { ContactHeader } from '@/components/contact-detail/header';
 import { FactsSection } from '@/components/contact-detail/facts-section';
 import { Timeline } from '@/components/contact-detail/timeline';
 import { NotesSection } from '@/components/contact-detail/notes-section';
+import { RelationshipsSection } from '@/components/contact-detail/relationships-section';
 import { FollowupsSection } from '@/components/contact-detail/followups-section';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LoadingPage } from '@/components/shared/loading';
@@ -44,6 +45,7 @@ export default function ContactDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 space-y-6">
           <FactsSection contact_id={contact.id} facts={facts} />
+          <RelationshipsSection contact_id={contact.id} />
           <FollowupsSection contact_id={contact.id} />
         </div>
 

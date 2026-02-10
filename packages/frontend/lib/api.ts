@@ -59,6 +59,20 @@ export interface BlockedIdentifier {
   created_at: string;
 }
 
+export interface Relationship {
+  id: string;
+  contact_id: string;
+  label: string;
+  person_name: string;
+  linked_contact_id: string | null;
+  linked_contact_name: string | null;
+  linked_contact_photo: string | null;
+  source: 'extracted' | 'manual';
+  confidence: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface RelationshipGraphData {
   contacts: Array<{
     id: string;
@@ -474,6 +488,29 @@ class ApiClient {
 
   remove_from_blocklist(id: string): Promise<void> {
     return this.fetch_json(`/api/blocklist/${id}`, { method: 'DELETE' });
+  }
+
+  // Relationships
+  get_relationships(contact_id: string): Promise<{ relationships: Relationship[] }> {
+    return this.fetch_json(`/api/relationships?contact_id=${contact_id}`);
+  }
+
+  create_relationship(data: { contact_id: string; label: string; person_name: string; linked_contact_id?: string }): Promise<{ relationship: Relationship }> {
+    return this.fetch_json('/api/relationships', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  update_relationship(id: string, data: { label?: string; person_name?: string; linked_contact_id?: string | null }): Promise<{ relationship: Relationship }> {
+    return this.fetch_json(`/api/relationships/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  delete_relationship(id: string): Promise<void> {
+    return this.fetch_json(`/api/relationships/${id}`, { method: 'DELETE' });
   }
 
   // Relationship Graph
