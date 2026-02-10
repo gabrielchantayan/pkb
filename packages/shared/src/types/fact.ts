@@ -1,4 +1,4 @@
-export type FactCategory = 'basic_info' | 'relationship' | 'preference' | 'custom';
+export type FactCategory = 'basic_info' | 'preference' | 'custom';
 export type FactType =
   | 'birthday'
   | 'location'
@@ -6,14 +6,6 @@ export type FactType =
   | 'company'
   | 'email'
   | 'phone'
-  | 'spouse'
-  | 'child'
-  | 'parent'
-  | 'sibling'
-  | 'friend'
-  | 'colleague'
-  | 'how_we_met'
-  | 'mutual_connection'
   | 'custom';
 
 export type FactSource = 'extracted' | 'manual';

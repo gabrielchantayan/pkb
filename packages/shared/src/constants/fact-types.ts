@@ -7,14 +7,6 @@ export const FACT_CATEGORIES: Record<FactType, FactCategory> = {
   company: 'basic_info',
   email: 'basic_info',
   phone: 'basic_info',
-  spouse: 'relationship',
-  child: 'relationship',
-  parent: 'relationship',
-  sibling: 'relationship',
-  friend: 'relationship',
-  colleague: 'relationship',
-  how_we_met: 'relationship',
-  mutual_connection: 'relationship',
   custom: 'custom',
 };
 
@@ -27,17 +19,6 @@ export const BASIC_INFO_FACT_TYPES: FactType[] = [
   'phone',
 ];
 
-export const RELATIONSHIP_FACT_TYPES: FactType[] = [
-  'spouse',
-  'child',
-  'parent',
-  'sibling',
-  'friend',
-  'colleague',
-  'how_we_met',
-  'mutual_connection',
-];
-
 export const FACT_TYPE_LABELS: Record<FactType, string> = {
   birthday: 'Birthday',
   location: 'Location',
@@ -45,14 +26,6 @@ export const FACT_TYPE_LABELS: Record<FactType, string> = {
   company: 'Company',
   email: 'Email',
   phone: 'Phone',
-  spouse: 'Spouse',
-  child: 'Child',
-  parent: 'Parent',
-  sibling: 'Sibling',
-  friend: 'Friend',
-  colleague: 'Colleague',
-  how_we_met: 'How We Met',
-  mutual_connection: 'Mutual Connection',
   custom: 'Custom',
 };
 
@@ -60,13 +33,6 @@ export const FACT_TYPE_LABELS: Record<FactType, string> = {
 export const STRUCTURED_FACT_TYPES: FactType[] = [
   'birthday',
   'location',
-  'spouse',
-  'child',
-  'parent',
-  'sibling',
-  'friend',
-  'colleague',
-  'mutual_connection',
 ];
 
 // Fact types that can create contact identifiers
