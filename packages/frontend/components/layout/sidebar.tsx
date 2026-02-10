@@ -18,8 +18,8 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden md:flex w-56 border-r bg-muted/30 flex-col">
-      <nav className="flex-1 p-4 space-y-1">
+    <aside className="hidden md:flex w-64 border-r border-border/70 bg-sidebar/80 flex-col">
+      <nav className="flex-1 p-5 space-y-1">
         {nav_items.map((item) => {
           const is_active = pathname === item.href ||
             (item.href !== '/' && pathname.startsWith(item.href));
@@ -29,10 +29,10 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                'flex items-center gap-3 px-3 py-2.5 rounded-full text-sm font-medium transition-colors',
                 is_active
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
               )}
             >
               <item.icon className="w-4 h-4" />

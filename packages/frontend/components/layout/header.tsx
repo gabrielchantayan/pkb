@@ -18,11 +18,11 @@ export function Header() {
   const { user, logout } = useAuth();
 
   return (
-    <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex h-14 items-center px-4 gap-4">
+    <header className="border-b border-border/70 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/65">
+      <div className="flex h-16 w-full items-center gap-4 px-5 md:px-7">
         <MobileNav />
-        <Link href="/" className="font-semibold text-lg">
-          PKB
+        <Link href="/" className="font-semibold text-lg tracking-tight">
+          <span className="font-serif">PKB</span>
         </Link>
 
         <div className="flex-1" />
@@ -34,7 +34,7 @@ export function Header() {
             >
               <Avatar name={user.email} size="sm" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="w-56">
               <div className="px-2 py-1.5 text-sm">
                 <p className="font-medium">{user.email}</p>
               </div>

@@ -42,8 +42,10 @@ export function AppLayout({ children }: AppLayoutProps) {
       <Header />
       <div className="flex-1 flex">
         <Sidebar />
-        <main className="flex-1 p-6 overflow-auto">
-          {children}
+        <main className="flex-1 px-5 py-8 md:px-8 overflow-auto">
+          <div className="mx-auto w-full max-w-[1200px]">
+            {children}
+          </div>
         </main>
       </div>
     </div>

@@ -33,7 +33,7 @@ export function RecentActivity() {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="border-b border-border/60">
         <CardTitle className="flex items-center gap-2">
           <Activity className="w-4 h-4" />
           Recent Activity
@@ -48,9 +48,9 @@ export function RecentActivity() {
                 <Link
                   key={activity.id}
                   href={`/contacts/${activity.contact_id}`}
-                  className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted transition-colors"
+                  className="flex items-start gap-3 p-3 rounded-xl border border-border/60 bg-background/60 hover:bg-muted transition-colors"
                 >
-                  <div className="p-1.5 rounded bg-muted">
+                  <div className="p-2 rounded-xl bg-accent/60 border border-border/60">
                     <Icon className="w-3.5 h-3.5 text-muted-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">

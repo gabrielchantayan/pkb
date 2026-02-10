@@ -26,19 +26,19 @@ export function StatsCards() {
       label: 'Total Contacts',
       value: data?.stats.total_contacts ?? 0,
       icon: Users,
-      color: 'text-blue-500',
+      color: 'text-amber-800',
     },
     {
       label: 'Pending Follow-ups',
       value: data?.stats.pending_followups ?? 0,
       icon: Bell,
-      color: 'text-amber-500',
+      color: 'text-orange-700',
     },
     {
       label: 'Recent Communications',
       value: data?.stats.recent_communications ?? 0,
       icon: MessageSquare,
-      color: 'text-green-500',
+      color: 'text-emerald-700',
     },
   ];
 
@@ -48,11 +48,11 @@ export function StatsCards() {
         <Card key={stat.label}>
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
-              <div className={`p-2 rounded-lg bg-muted ${stat.color}`}>
+              <div className={`p-3 rounded-2xl bg-accent/60 border border-border/60 ${stat.color}`}>
                 <stat.icon className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{stat.value}</p>
+                <p className="text-3xl font-semibold">{stat.value}</p>
                 <p className="text-sm text-muted-foreground">{stat.label}</p>
               </div>
             </div>

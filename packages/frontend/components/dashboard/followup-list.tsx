@@ -32,7 +32,7 @@ export function FollowupList() {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="border-b border-border/60">
         <CardTitle className="flex items-center gap-2">
           <Clock className="w-4 h-4" />
           Follow-ups
@@ -90,7 +90,7 @@ function FollowupItem({ followup }: { followup: Followup }) {
   const { mutate: complete, isPending } = useCompleteFollowup();
 
   return (
-    <div className="flex items-center justify-between py-2 px-3 rounded-lg border bg-card">
+    <div className="flex items-center justify-between py-3 px-4 rounded-xl border border-border/60 bg-background/60">
       <Link
         href={`/contacts/${followup.contact_id}`}
         className="flex items-center gap-3 flex-1 min-w-0"
