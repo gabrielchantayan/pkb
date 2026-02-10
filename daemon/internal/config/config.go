@@ -83,9 +83,10 @@ type NotesConfig struct {
 }
 
 type SyncConfig struct {
-	IntervalSeconds int `yaml:"interval_seconds"`
-	BatchSize       int `yaml:"batch_size"`
-	MaxPerCycle     int `yaml:"max_per_cycle"`
+	IntervalSeconds         int `yaml:"interval_seconds"`
+	ContactsIntervalSeconds int `yaml:"contacts_interval_seconds"`
+	BatchSize               int `yaml:"batch_size"`
+	MaxPerCycle             int `yaml:"max_per_cycle"`
 }
 
 type QueueConfig struct {
@@ -148,6 +149,9 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.Sync.MaxPerCycle == 0 {
 		cfg.Sync.MaxPerCycle = 1000
+	}
+	if cfg.Sync.ContactsIntervalSeconds == 0 {
+		cfg.Sync.ContactsIntervalSeconds = 900 // 15 minutes
 	}
 	if cfg.State.Path == "" {
 		home, _ := os.UserHomeDir()

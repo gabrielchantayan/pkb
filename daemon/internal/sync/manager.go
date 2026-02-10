@@ -2,6 +2,10 @@ package sync
 
 import (
 	"context"
+	"crypto/sha256"
+	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -39,15 +43,17 @@ type NotesSource interface {
 }
 
 type Manager struct {
-	client          *api.Client
-	config          *config.Config
-	state           *State
-	queue           *queue.Queue
-	queueProcessor  *queue.Processor
-	sources         []Source
-	contactsSources []ContactsSource
-	calendarSources []CalendarSource
-	notesSources    []NotesSource
+	client           *api.Client
+	config           *config.Config
+	state            *State
+	queue            *queue.Queue
+	queueProcessor   *queue.Processor
+	sources          []Source
+	contactsSources  []ContactsSource
+	calendarSources  []CalendarSource
+	notesSources     []NotesSource
+	lastContactsSync time.Time
+	lastContactsHash string
 }
 
 func NewManager(client *api.Client, cfg *config.Config) *Manager {
@@ -307,14 +313,53 @@ func (m *Manager) syncSource(ctx context.Context, src Source) error {
 	return nil
 }
 
+// hashContacts computes a stable hash of contact imports for change detection.
+func hashContacts(imports []contacts.ContactImport) string {
+	// Sort by SourceID for stable ordering
+	sorted := make([]contacts.ContactImport, len(imports))
+	copy(sorted, imports)
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].SourceID < sorted[j].SourceID
+	})
+
+	h := sha256.New()
+	for _, c := range sorted {
+		fmt.Fprintf(h, "%s|%s|%s|%s|%s|",
+			c.SourceID, c.DisplayName,
+			strings.Join(c.Emails, ","),
+			strings.Join(c.Phones, ","),
+			c.Note,
+		)
+		for _, f := range c.Facts {
+			fmt.Fprintf(h, "%s=%s,", f.Type, f.Value)
+		}
+		h.Write([]byte{'\n'})
+	}
+	return fmt.Sprintf("%x", h.Sum(nil))
+}
+
 func (m *Manager) syncContactsSource(ctx context.Context, src ContactsSource) error {
-	// Contacts do a full sync each time (no incremental checkpoint)
+	// Contacts use a separate, longer sync interval
+	contactsInterval := time.Duration(m.config.Sync.ContactsIntervalSeconds) * time.Second
+	if !m.lastContactsSync.IsZero() && time.Since(m.lastContactsSync) < contactsInterval {
+		return nil
+	}
+
 	imports, err := src.SyncContacts(ctx)
 	if err != nil {
 		return err
 	}
 
 	if len(imports) == 0 {
+		m.lastContactsSync = time.Now()
+		return nil
+	}
+
+	// Check if contacts have changed since last sync
+	hash := hashContacts(imports)
+	if hash == m.lastContactsHash {
+		log.Debug().Str("source", src.Name()).Int("count", len(imports)).Msg("Contacts unchanged, skipping import")
+		m.lastContactsSync = time.Now()
 		return nil
 	}
 
@@ -377,6 +422,9 @@ func (m *Manager) syncContactsSource(ctx context.Context, src ContactsSource) er
 				Msg("Contact import error")
 		}
 	}
+
+	m.lastContactsSync = time.Now()
+	m.lastContactsHash = hash
 
 	log.Info().
 		Str("source", src.Name()).
