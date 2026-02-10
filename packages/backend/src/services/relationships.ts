@@ -102,7 +102,7 @@ export async function create_extracted_relationship(
     const result = await query<Relationship>(
       `INSERT INTO relationships (contact_id, label, person_name, source, source_communication_id, confidence, created_at, updated_at)
        VALUES ($1, $2, $3, 'extracted', $4, $5, NOW(), NOW())
-       ON CONFLICT (contact_id, lower(label), lower(person_name)) DO NOTHING
+       ON CONFLICT (contact_id, lower(label), lower(person_name)) WHERE deleted_at IS NULL DO NOTHING
        RETURNING *`,
       [input.contact_id, label, input.person_name, communication_id, input.confidence]
     );

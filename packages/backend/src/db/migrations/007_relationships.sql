@@ -10,10 +10,10 @@ CREATE TABLE relationships (
   confidence DECIMAL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  deleted_at TIMESTAMPTZ,
-  UNIQUE(contact_id, lower(label), lower(person_name))
+  deleted_at TIMESTAMPTZ
 );
 
+CREATE UNIQUE INDEX idx_relationships_unique ON relationships(contact_id, lower(label), lower(person_name)) WHERE deleted_at IS NULL;
 CREATE INDEX idx_relationships_contact_id ON relationships(contact_id);
 CREATE INDEX idx_relationships_linked_contact_id ON relationships(linked_contact_id);
 
@@ -34,7 +34,7 @@ SELECT
 FROM facts f
 WHERE f.fact_type IN ('spouse', 'child', 'parent', 'sibling', 'friend', 'colleague', 'mutual_connection', 'how_we_met')
   AND f.deleted_at IS NULL
-ON CONFLICT (contact_id, lower(label), lower(person_name)) DO NOTHING;
+ON CONFLICT (contact_id, lower(label), lower(person_name)) WHERE deleted_at IS NULL DO NOTHING;
 
 -- Soft-delete migrated relationship facts
 UPDATE facts
