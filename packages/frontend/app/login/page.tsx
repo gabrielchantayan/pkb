@@ -39,23 +39,19 @@ export default function LoginPage() {
           </p>
           <div className="space-y-3">
             <h1 className="text-4xl font-semibold">Personal Knowledge Base</h1>
-            <p className="text-muted-foreground max-w-lg">
-              A warm, quiet workspace for your relationships, memories, and the
-              follow-ups that keep them alive.
-            </p>
           </div>
           <div className="grid gap-3 text-sm text-muted-foreground">
             <div className="flex items-center gap-3">
               <span className="h-2 w-2 rounded-full bg-primary/70" />
-              Capture notes, messages, and personal context in one place.
+              Notes, messages, and context for every contact.
             </div>
             <div className="flex items-center gap-3">
               <span className="h-2 w-2 rounded-full bg-primary/70" />
-              Keep a gentle cadence with upcoming follow-ups.
+              Follow-up reminders so nobody falls through the cracks.
             </div>
             <div className="flex items-center gap-3">
               <span className="h-2 w-2 rounded-full bg-primary/70" />
-              See your relationship network grow over time.
+              AI extraction from your conversations and emails.
             </div>
           </div>
         </div>

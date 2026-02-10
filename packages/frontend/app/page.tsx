@@ -9,11 +9,7 @@ export default function DashboardPage() {
         <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground">
           Overview
         </p>
-        <h1 className="text-4xl font-semibold">Your relationship atlas</h1>
-        <p className="text-muted-foreground max-w-2xl">
-          A calm, focused view of the people you care about and the moments that
-          matter.
-        </p>
+        <h1 className="text-4xl font-semibold">Dashboard</h1>
       </div>
 
       <StatsCards />
