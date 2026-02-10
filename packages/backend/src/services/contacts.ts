@@ -537,6 +537,29 @@ export async function merge_contacts(target_id: string, source_id: string): Prom
       [target_id, source_id]
     );
 
+    // Move relationships (skip duplicates via unique constraint)
+    await client.query(
+      `UPDATE relationships SET contact_id = $1
+       WHERE contact_id = $2 AND deleted_at IS NULL
+       AND NOT EXISTS (
+         SELECT 1 FROM relationships r2
+         WHERE r2.contact_id = $1 AND lower(r2.label) = lower(relationships.label)
+           AND lower(r2.person_name) = lower(relationships.person_name) AND r2.deleted_at IS NULL
+       )`,
+      [target_id, source_id]
+    );
+    await client.query(
+      `UPDATE relationships SET deleted_at = NOW() WHERE contact_id = $1 AND deleted_at IS NULL`,
+      [source_id]
+    );
+
+    // Update relationships on other contacts that linked to the source
+    await client.query(
+      `UPDATE relationships SET linked_contact_id = $1
+       WHERE linked_contact_id = $2 AND deleted_at IS NULL`,
+      [target_id, source_id]
+    );
+
     // Move notes
     await client.query(
       'UPDATE notes SET contact_id = $1 WHERE contact_id = $2',

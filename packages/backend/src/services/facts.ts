@@ -10,8 +10,6 @@ import type {
 import {
   birthday_structured_schema,
   location_structured_schema,
-  relationship_structured_schema,
-  child_structured_schema,
 } from '../schemas/facts.js';
 
 // Map fact types to categories
@@ -22,14 +20,6 @@ const FACT_CATEGORIES: Record<string, string> = {
   company: 'basic_info',
   email: 'basic_info',
   phone: 'basic_info',
-  spouse: 'relationship',
-  child: 'relationship',
-  parent: 'relationship',
-  sibling: 'relationship',
-  friend: 'relationship',
-  colleague: 'relationship',
-  how_we_met: 'relationship',
-  mutual_connection: 'relationship',
   custom: 'custom',
 };
 
@@ -37,13 +27,6 @@ const FACT_CATEGORIES: Record<string, string> = {
 const STRUCTURED_SCHEMAS: Record<string, z.ZodSchema> = {
   birthday: birthday_structured_schema,
   location: location_structured_schema,
-  spouse: relationship_structured_schema,
-  child: child_structured_schema,
-  parent: relationship_structured_schema,
-  sibling: relationship_structured_schema,
-  friend: relationship_structured_schema,
-  colleague: relationship_structured_schema,
-  mutual_connection: relationship_structured_schema,
 };
 
 export class NotFoundError extends Error {

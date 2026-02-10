@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const fact_category_schema = z.enum(['basic_info', 'relationship', 'custom']);
+export const fact_category_schema = z.enum(['basic_info', 'custom']);
 
 export const fact_type_schema = z.enum([
   'birthday',
@@ -9,14 +9,6 @@ export const fact_type_schema = z.enum([
   'company',
   'email',
   'phone',
-  'spouse',
-  'child',
-  'parent',
-  'sibling',
-  'friend',
-  'colleague',
-  'how_we_met',
-  'mutual_connection',
   'custom',
 ]);
 
@@ -31,17 +23,6 @@ export const location_structured_schema = z.object({
   city: z.string().optional(),
   state: z.string().optional(),
   country: z.string().optional(),
-});
-
-export const relationship_structured_schema = z.object({
-  name: z.string().min(1),
-  contact_id: z.string().uuid().optional(),
-});
-
-export const child_structured_schema = z.object({
-  name: z.string().min(1),
-  age: z.number().int().min(0).optional(),
-  contact_id: z.string().uuid().optional(),
 });
 
 // List facts query

@@ -18,6 +18,7 @@ import sync_router from './routes/sync.js';
 import search_router from './routes/search.js';
 import ai_router from './routes/ai.js';
 import dashboard_router from './routes/dashboard.js';
+import relationships_router from './routes/relationships.js';
 
 export function create_app(): express.Application {
   const app = express();
@@ -70,6 +71,9 @@ export function create_app(): express.Application {
 
   // AI routes
   app.use('/api', ai_router);
+
+  // Relationships routes
+  app.use('/api', relationships_router);
 
   // Dashboard routes
   app.use('/api', dashboard_router);
