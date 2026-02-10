@@ -83,6 +83,7 @@ export async function process_communications(communication_ids: string[]): Promi
 // Process a single communication synchronously (for testing/manual use)
 export async function process_single_communication(communication_id: string): Promise<{
   facts_created: number;
+  relationships_created: number;
   followups_created: number;
   embedding_queued: boolean;
   sentiment_analyzed: boolean;
@@ -102,7 +103,7 @@ export async function process_single_communication(communication_id: string): Pr
   const { content, contact_id, contact_name, direction } = comm_result.rows[0];
 
   if (content.length < MIN_CONTENT_LENGTH) {
-    return { facts_created: 0, followups_created: 0, embedding_queued: false, sentiment_analyzed: false };
+    return { facts_created: 0, relationships_created: 0, followups_created: 0, embedding_queued: false, sentiment_analyzed: false };
   }
 
   const result = await extract_from_communication(
@@ -125,6 +126,7 @@ export async function process_single_communication(communication_id: string): Pr
 
   return {
     facts_created: result.facts.length,
+    relationships_created: result.relationships.length,
     followups_created: result.followups.length,
     embedding_queued: true,
     sentiment_analyzed: sentiment_result !== null,
