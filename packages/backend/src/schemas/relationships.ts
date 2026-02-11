@@ -15,6 +15,7 @@ export const update_relationship_schema = z.object({
   label: z.string().min(1).optional(),
   person_name: z.string().min(1).optional(),
   linked_contact_id: z.string().uuid().nullable().optional(),
+  source: z.enum(['extracted', 'manual']).optional(),
 });
 
 export const uuid_param_schema = z.object({

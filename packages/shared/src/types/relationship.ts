@@ -6,6 +6,8 @@ export interface Relationship {
   linked_contact_id: string | null;
   linked_contact_name: string | null;
   linked_contact_photo: string | null;
+  suggested_contact_id: string | null;
+  suggested_contact_name: string | null;
   source: 'extracted' | 'manual';
   source_communication_id: string | null;
   confidence: number | null;

@@ -67,6 +67,8 @@ export interface Relationship {
   linked_contact_id: string | null;
   linked_contact_name: string | null;
   linked_contact_photo: string | null;
+  suggested_contact_id: string | null;
+  suggested_contact_name: string | null;
   source: 'extracted' | 'manual';
   confidence: number | null;
   created_at: string;
@@ -508,7 +510,7 @@ class ApiClient {
     });
   }
 
-  update_relationship(id: string, data: { label?: string; person_name?: string; linked_contact_id?: string | null }): Promise<{ relationship: Relationship }> {
+  update_relationship(id: string, data: { label?: string; person_name?: string; linked_contact_id?: string | null; source?: 'extracted' | 'manual' }): Promise<{ relationship: Relationship }> {
     return this.fetch_json(`/api/relationships/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
