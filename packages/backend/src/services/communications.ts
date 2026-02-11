@@ -191,11 +191,11 @@ export async function batch_upsert(input: BatchUpsertInput): Promise<BatchUpsert
     }
   }
 
-  // Process newly inserted communications through AI pipeline (async, non-blocking)
-  // AI failures should not affect the batch upsert result
+  // Queue sentiment analysis and embeddings for new communications (async, non-blocking)
+  // FRF extraction is handled by the cron pipeline (frf-cron.ts)
   if (inserted_ids.length > 0) {
     process_communications(inserted_ids).catch((error) => {
-      logger.error('AI pipeline error during batch upsert', {
+      logger.error('Sentiment/embedding error during batch upsert', {
         error: error instanceof Error ? error.message : 'Unknown error',
         communication_count: inserted_ids.length,
       });

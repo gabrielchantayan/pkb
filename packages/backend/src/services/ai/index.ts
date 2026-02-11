@@ -42,7 +42,7 @@ export {
 } from './sentiment.js';
 
 // Pipeline
-export { process_communications, process_single_communication } from './pipeline.js';
+export { process_communications } from './pipeline.js';
 
 // Tag suggestions
 export {
