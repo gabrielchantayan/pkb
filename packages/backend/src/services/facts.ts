@@ -11,6 +11,8 @@ import {
   birthday_structured_schema,
   location_structured_schema,
 } from '../schemas/facts.js';
+import { check_semantic_duplicate, generate_fact_embedding } from './ai/dedup.js';
+import { logger } from '../lib/logger.js';
 
 // Map fact types to categories
 const FACT_CATEGORIES: Record<string, string> = {
@@ -28,6 +30,9 @@ const FACT_CATEGORIES: Record<string, string> = {
   goal: 'preference',
   custom: 'custom',
 };
+
+export const SINGULAR_FACT_TYPES = ['birthday', 'location', 'job_title', 'company'] as const;
+export const PLURAL_FACT_TYPES = ['preference', 'tool', 'hobby', 'opinion', 'life_event', 'goal', 'email', 'phone', 'custom'] as const;
 
 // Structured value schemas for validation
 const STRUCTURED_SCHEMAS: Record<string, z.ZodSchema> = {
@@ -521,6 +526,125 @@ export async function batch_create_extracted_facts(
   }
 
   return results;
+}
+
+export interface ExtractedFactV2Result {
+  action: 'inserted' | 'skipped_duplicate' | 'superseded';
+  fact?: Fact;
+}
+
+export async function create_extracted_fact_v2(
+  communication_id: string,
+  input: ExtractedFactInput,
+  dedup_config: { dedup_similarity: number }
+): Promise<ExtractedFactV2Result> {
+  const category = FACT_CATEGORIES[input.fact_type] || 'custom';
+  const is_singular = (SINGULAR_FACT_TYPES as readonly string[]).includes(input.fact_type);
+
+  // Validate structured_value based on fact_type
+  if (input.structured_value) {
+    validate_structured_value(input.fact_type, input.structured_value);
+  }
+
+  // Step 1: Generate embedding
+  const embedding = await generate_fact_embedding(input.value);
+
+  // Step 2: Semantic dedup check
+  if (embedding) {
+    const dedup = await check_semantic_duplicate(
+      input.contact_id,
+      input.fact_type,
+      input.value,
+      embedding,
+      dedup_config.dedup_similarity,
+    );
+
+    if (dedup.is_duplicate) {
+      logger.debug('Skipping duplicate fact', {
+        contact_id: input.contact_id,
+        fact_type: input.fact_type,
+        value: input.value,
+        matching_fact_id: dedup.matching_fact_id,
+        similarity: dedup.similarity,
+      });
+      return { action: 'skipped_duplicate' };
+    }
+  }
+
+  const pool = get_pool();
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    let action: 'inserted' | 'superseded' = 'inserted';
+
+    // Step 3: Auto-supersede for singular types
+    if (is_singular) {
+      const existing = await client.query<Fact>(
+        `SELECT * FROM facts
+         WHERE contact_id = $1 AND fact_type = $2 AND deleted_at IS NULL
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [input.contact_id, input.fact_type]
+      );
+
+      if (existing.rows[0] && existing.rows[0].value !== input.value) {
+        const old_fact = existing.rows[0];
+
+        // Record history
+        await client.query(
+          `INSERT INTO fact_history (fact_id, value, structured_value, changed_at, change_source)
+           VALUES ($1, $2, $3, NOW(), 'superseded')`,
+          [old_fact.id, old_fact.value, old_fact.structured_value]
+        );
+
+        // Soft-delete old fact
+        await client.query(
+          'UPDATE facts SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1',
+          [old_fact.id]
+        );
+
+        action = 'superseded';
+      }
+    }
+
+    // Step 4: Insert new fact with embedding
+    const result = await client.query<Fact>(
+      `INSERT INTO facts (
+        contact_id, category, fact_type, value, structured_value,
+        source, source_communication_id, confidence, has_conflict,
+        value_embedding, reminder_enabled, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, false, $9::vector, false, NOW(), NOW())
+      RETURNING *`,
+      [
+        input.contact_id,
+        category,
+        input.fact_type,
+        input.value,
+        input.structured_value ? JSON.stringify(input.structured_value) : null,
+        'extracted',
+        communication_id,
+        input.confidence,
+        embedding ? JSON.stringify(embedding) : null,
+      ]
+    );
+
+    const fact = result.rows[0];
+
+    // If email/phone fact, also create identifier
+    if (input.fact_type === 'email' || input.fact_type === 'phone') {
+      await create_identifier_from_fact(client, input.contact_id, input.fact_type, input.value);
+    }
+
+    await client.query('COMMIT');
+    return { action, fact };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 // Helper to create identifier from email/phone fact

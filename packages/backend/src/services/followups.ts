@@ -6,6 +6,8 @@ import type {
   UpdateFollowupInput,
   AcceptSuggestionInput,
 } from '../schemas/followups.js';
+import { config } from '../config.js';
+import { logger } from '../lib/logger.js';
 
 export class NotFoundError extends Error {
   constructor(message: string) {
@@ -51,6 +53,12 @@ function add_days(date: string, days: number): string {
 function format_date(date: Date | string): string {
   const d = typeof date === 'string' ? new Date(date) : date;
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+export function is_within_followup_cutoff(timestamp: Date, cutoff_days: number): boolean {
+  const cutoff_date = new Date();
+  cutoff_date.setDate(cutoff_date.getDate() - cutoff_days);
+  return timestamp >= cutoff_date;
 }
 
 export async function list_followups(params: ListFollowupsQuery): Promise<ListFollowupsResponse> {
@@ -329,8 +337,21 @@ export async function create_content_detected_followup(
   contact_id: string,
   communication_id: string,
   reason: string,
-  suggested_date: string
+  suggested_date: string,
+  communication_timestamp?: Date
 ): Promise<Followup | null> {
+  // Check followup cutoff if timestamp is provided
+  if (communication_timestamp) {
+    if (!is_within_followup_cutoff(communication_timestamp, config.frf_followup_cutoff_days)) {
+      logger.debug('Skipping followup creation: communication too old', {
+        communication_id,
+        communication_timestamp: communication_timestamp.toISOString(),
+        cutoff_days: config.frf_followup_cutoff_days,
+      });
+      return null;
+    }
+  }
+
   const pool = get_pool();
   const client = await pool.connect();
 
