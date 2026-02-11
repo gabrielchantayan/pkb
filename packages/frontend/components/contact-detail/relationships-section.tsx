@@ -6,6 +6,7 @@ import { Relationship } from '@/lib/api';
 import {
   use_relationships,
   use_create_relationship,
+  use_update_relationship,
   use_delete_relationship,
 } from '@/lib/hooks/use-relationships';
 import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
@@ -26,7 +27,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ContactPickerDialog } from '@/components/contacts/contact-picker-dialog';
-import { Plus, Trash2, Sparkles, Link as LinkIcon } from 'lucide-react';
+import { Plus, Pencil, Trash2, Sparkles, Link as LinkIcon } from 'lucide-react';
 
 interface RelationshipsSectionProps {
   contact_id: string;
@@ -36,7 +37,7 @@ const COMMON_LABELS = [
   'spouse', 'partner', 'child', 'parent', 'sibling',
   'friend', 'colleague', 'boss', 'mentor', 'roommate',
   'ex', 'client', 'neighbor', 'teacher', 'student',
-  'doctor', 'therapist', 'how_we_met',
+  'doctor', 'therapist', 'former_friend', 'how_we_met',
 ];
 
 const LABEL_DISPLAY: Record<string, string> = {
@@ -57,6 +58,7 @@ const LABEL_DISPLAY: Record<string, string> = {
   student: 'Students',
   doctor: 'Doctors',
   therapist: 'Therapists',
+  former_friend: 'Former Friends',
   how_we_met: 'How We Met',
 };
 
@@ -66,6 +68,7 @@ function format_label(label: string): string {
 
 export function RelationshipsSection({ contact_id }: RelationshipsSectionProps) {
   const [show_form, set_show_form] = useState(false);
+  const [editing, set_editing] = useState<Relationship | null>(null);
   const { data } = use_relationships(contact_id);
   const relationships = data?.relationships ?? [];
 
@@ -80,14 +83,25 @@ export function RelationshipsSection({ contact_id }: RelationshipsSectionProps) 
     {} as Record<string, Relationship[]>
   );
 
+  function handle_edit(rel: Relationship) {
+    set_editing(rel);
+    set_show_form(true);
+  }
+
+  function handle_open_change(open: boolean) {
+    set_show_form(open);
+    if (!open) set_editing(null);
+  }
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-lg">Relationships</CardTitle>
-        <AddRelationshipDialog
+        <RelationshipDialog
           contact_id={contact_id}
           open={show_form}
-          on_open_change={set_show_form}
+          on_open_change={handle_open_change}
+          relationship={editing}
         />
       </CardHeader>
       <CardContent className="space-y-4">
@@ -98,7 +112,12 @@ export function RelationshipsSection({ contact_id }: RelationshipsSectionProps) 
             </h3>
             <div className="space-y-1">
               {rels.map((rel) => (
-                <RelationshipItem key={rel.id} relationship={rel} contact_id={contact_id} />
+                <RelationshipItem
+                  key={rel.id}
+                  relationship={rel}
+                  contact_id={contact_id}
+                  on_edit={() => handle_edit(rel)}
+                />
               ))}
             </div>
           </div>
@@ -114,7 +133,15 @@ export function RelationshipsSection({ contact_id }: RelationshipsSectionProps) 
   );
 }
 
-function RelationshipItem({ relationship, contact_id }: { relationship: Relationship; contact_id: string }) {
+function RelationshipItem({
+  relationship,
+  contact_id,
+  on_edit,
+}: {
+  relationship: Relationship;
+  contact_id: string;
+  on_edit: () => void;
+}) {
   const { mutate: delete_relationship, isPending } = use_delete_relationship();
 
   return (
@@ -137,37 +164,72 @@ function RelationshipItem({ relationship, contact_id }: { relationship: Relation
           </span>
         )}
       </div>
-      <Button
-        size="icon-xs"
-        variant="ghost"
-        className="opacity-0 group-hover:opacity-100 transition-opacity"
-        onClick={() => delete_relationship({ id: relationship.id, contact_id })}
-        disabled={isPending}
-      >
-        <Trash2 className="w-3 h-3" />
-      </Button>
+      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <Button size="icon-xs" variant="ghost" onClick={on_edit}>
+          <Pencil className="w-3 h-3" />
+        </Button>
+        <Button
+          size="icon-xs"
+          variant="ghost"
+          onClick={() => delete_relationship({ id: relationship.id, contact_id })}
+          disabled={isPending}
+        >
+          <Trash2 className="w-3 h-3" />
+        </Button>
+      </div>
     </div>
   );
 }
 
-function AddRelationshipDialog({
+function RelationshipDialog({
   contact_id,
   open,
   on_open_change,
+  relationship,
 }: {
   contact_id: string;
   open: boolean;
   on_open_change: (open: boolean) => void;
+  relationship?: Relationship | null;
 }) {
-  const [label, set_label] = useState('');
-  const [custom_label, set_custom_label] = useState('');
-  const [person_name, set_person_name] = useState('');
-  const [linked_contact_id, set_linked_contact_id] = useState<string | undefined>();
-  const [linked_contact_name, set_linked_contact_name] = useState('');
-  const [show_picker, set_show_picker] = useState(false);
-  const { mutate: create_relationship, isPending } = use_create_relationship();
+  const is_edit = !!relationship;
 
+  function initial_label() {
+    if (!relationship) return '';
+    return COMMON_LABELS.includes(relationship.label) ? relationship.label : 'custom';
+  }
+
+  function initial_custom_label() {
+    if (!relationship) return '';
+    return COMMON_LABELS.includes(relationship.label) ? '' : relationship.label;
+  }
+
+  const [label, set_label] = useState(initial_label);
+  const [custom_label, set_custom_label] = useState(initial_custom_label);
+  const [person_name, set_person_name] = useState(relationship?.person_name ?? '');
+  const [linked_contact_id, set_linked_contact_id] = useState<string | undefined>(
+    relationship?.linked_contact_id ?? undefined
+  );
+  const [linked_contact_name, set_linked_contact_name] = useState(
+    relationship?.linked_contact_name ?? ''
+  );
+  const [show_picker, set_show_picker] = useState(false);
+  const { mutate: create_relationship, isPending: is_creating } = use_create_relationship();
+  const { mutate: update_relationship, isPending: is_updating } = use_update_relationship();
+
+  const is_pending = is_creating || is_updating;
   const effective_label = label === 'custom' ? custom_label : label;
+
+  // Sync form state when the relationship prop changes (opening edit for a different item)
+  const [prev_relationship_id, set_prev_relationship_id] = useState<string | null>(null);
+  if ((relationship?.id ?? null) !== prev_relationship_id) {
+    set_prev_relationship_id(relationship?.id ?? null);
+    set_label(relationship ? (COMMON_LABELS.includes(relationship.label) ? relationship.label : 'custom') : '');
+    set_custom_label(relationship ? (COMMON_LABELS.includes(relationship.label) ? '' : relationship.label) : '');
+    set_person_name(relationship?.person_name ?? '');
+    set_linked_contact_id(relationship?.linked_contact_id ?? undefined);
+    set_linked_contact_name(relationship?.linked_contact_name ?? '');
+  }
 
   function reset() {
     set_label('');
@@ -181,26 +243,46 @@ function AddRelationshipDialog({
     e.preventDefault();
     if (!effective_label || !person_name) return;
 
-    create_relationship(
-      { contact_id, label: effective_label, person_name, linked_contact_id },
-      {
-        onSuccess: () => {
-          on_open_change(false);
-          reset();
+    if (is_edit) {
+      update_relationship(
+        {
+          id: relationship.id,
+          contact_id,
+          label: effective_label,
+          person_name,
+          linked_contact_id: linked_contact_id ?? null,
         },
-      }
-    );
+        {
+          onSuccess: () => {
+            on_open_change(false);
+            reset();
+          },
+        }
+      );
+    } else {
+      create_relationship(
+        { contact_id, label: effective_label, person_name, linked_contact_id },
+        {
+          onSuccess: () => {
+            on_open_change(false);
+            reset();
+          },
+        }
+      );
+    }
   }
 
   return (
     <>
       <Dialog open={open} onOpenChange={(o) => { on_open_change(o); if (!o) reset(); }}>
-        <DialogTrigger render={<Button size="icon-xs" variant="ghost" />}>
-          <Plus className="w-4 h-4" />
-        </DialogTrigger>
+        {!is_edit && (
+          <DialogTrigger render={<Button size="icon-xs" variant="ghost" />}>
+            <Plus className="w-4 h-4" />
+          </DialogTrigger>
+        )}
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Relationship</DialogTitle>
+            <DialogTitle>{is_edit ? 'Edit Relationship' : 'Add Relationship'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handle_submit} className="space-y-4">
             <div>
@@ -261,8 +343,8 @@ function AddRelationshipDialog({
               <Button type="button" variant="outline" onClick={() => { on_open_change(false); reset(); }}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isPending || !effective_label || !person_name}>
-                {isPending ? 'Adding...' : 'Add'}
+              <Button type="submit" disabled={is_pending || !effective_label || !person_name}>
+                {is_pending ? (is_edit ? 'Saving...' : 'Adding...') : (is_edit ? 'Save' : 'Add')}
               </Button>
             </div>
           </form>
@@ -275,9 +357,7 @@ function AddRelationshipDialog({
         on_select={(contact) => {
           set_linked_contact_id(contact.id);
           set_linked_contact_name(contact.display_name);
-          if (!person_name) {
-            set_person_name(contact.display_name);
-          }
+          set_person_name(contact.display_name);
         }}
         exclude_id={contact_id}
         title="Link to Contact"
