@@ -15,7 +15,12 @@ interface CommunicationWithContact {
   direction: string;
 }
 
-// Called after batch upsert completes to process new communications
+/**
+ * Called after batch upsert to process new communications.
+ * FRF extraction is now handled by the cron pipeline (frf-cron.ts).
+ * This function only handles sentiment analysis and embedding queuing.
+ * @deprecated Will be removed by WP-07 when old pipeline is fully disconnected.
+ */
 export async function process_communications(communication_ids: string[]): Promise<void> {
   if (!is_ai_available()) {
     logger.debug('AI not available, skipping communication processing');
@@ -24,7 +29,6 @@ export async function process_communications(communication_ids: string[]): Promi
 
   for (const id of communication_ids) {
     try {
-      // Get communication with contact info
       const comm_result = await query<CommunicationWithContact>(
         `SELECT cm.id, cm.content, cm.contact_id, cm.direction, c.display_name as contact_name
          FROM communications cm
@@ -35,29 +39,13 @@ export async function process_communications(communication_ids: string[]): Promi
 
       if (!comm_result.rows[0]) continue;
 
-      const { content, contact_id, contact_name, direction } = comm_result.rows[0];
+      const { content, contact_id } = comm_result.rows[0];
 
-      // Skip very short messages
       if (content.length < MIN_CONTENT_LENGTH) continue;
 
-      // Extract facts and followups (async, don't await)
-      extract_from_communication(
-        id,
-        content,
-        contact_id,
-        contact_name || 'Unknown',
-        direction || 'unknown'
-      ).catch((error) => {
-        logger.error('Extraction error for communication', {
-          communication_id: id,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
-      });
-
-      // Analyze sentiment (async, don't await)
+      // Sentiment analysis (async, don't await)
       analyze_communication_sentiment(id, content)
         .then(() => {
-          // Update contact sentiment trend after analyzing this communication
           if (contact_id) {
             return update_contact_sentiment_trend(contact_id);
           }
