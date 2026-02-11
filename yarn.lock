@@ -1427,6 +1427,7 @@ __metadata:
     "@types/express": "npm:^5.0.0"
     "@types/multer": "npm:^2.0.0"
     "@types/node": "npm:^22.10.7"
+    "@types/node-cron": "npm:^3.0.11"
     "@types/pg": "npm:^8.11.10"
     "@types/supertest": "npm:^6.0.3"
     bcrypt: "npm:^6.0.0"
@@ -1434,6 +1435,7 @@ __metadata:
     cors: "npm:^2.8.6"
     express: "npm:^5.0.1"
     multer: "npm:^2.0.2"
+    node-cron: "npm:^4.2.1"
     pg: "npm:^8.13.1"
     supertest: "npm:^7.2.2"
     tsx: "npm:^4.19.2"
@@ -2036,6 +2038,13 @@ __metadata:
   dependencies:
     "@types/express": "npm:*"
   checksum: 10c0/375b0e77c4675c2ff27d1170e469df48dced928cc9fcd077ead111a20d0f2c01921fd25e20e25426604d6d3e311b37da2bc03ce47523d06adafba5c4b8077b67
+  languageName: node
+  linkType: hard
+
+"@types/node-cron@npm:^3.0.11":
+  version: 3.0.11
+  resolution: "@types/node-cron@npm:3.0.11"
+  checksum: 10c0/21cd0255988da2935bc8bf010da8b31624911ec10ef5d9a96a59c57193f60b27c1749b2e27c2a292a697d00195da5b8848a707345bb276abc39c96287ee82005
   languageName: node
   linkType: hard
 
@@ -6431,6 +6440,13 @@ __metadata:
   dependencies:
     node-gyp: "npm:latest"
   checksum: 10c0/e4de0b4e70998fed7ef41933946f60565fc3a17cb83b7d626a0c0bb1f734cf7852e0e596f12681e7c8ed424163ee3cdbb4f0abaa9cc269d03f48834c263ba162
+  languageName: node
+  linkType: hard
+
+"node-cron@npm:^4.2.1":
+  version: 4.2.1
+  resolution: "node-cron@npm:4.2.1"
+  checksum: 10c0/804df01df230e96fd2f8ffcde004f4d5af953bccdf3ccf993dc450526dd65f553a2f2ad4bc0faf55c90c38cbc99c9ddbb88ee16cba3fc6bc74e606da6efb249e
   languageName: node
   linkType: hard
 
