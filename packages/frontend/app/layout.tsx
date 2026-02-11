@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Merriweather, Source_Sans_3 } from 'next/font/google';
+import { Merriweather, Source_Sans_3, Caveat } from 'next/font/google';
 import './globals.css';
 import { QueryProvider } from '@/providers/query-provider';
 import { AuthProvider } from '@/providers/auth-provider';
@@ -10,8 +10,13 @@ const source_sans = Source_Sans_3({
   variable: '--font-sans',
 });
 const merriweather = Merriweather({
+  weight: ['300', '400', '700', '900'],
   subsets: ['latin'],
   variable: '--font-serif',
+});
+const caveat = Caveat({
+  subsets: ['latin'],
+  variable: '--font-handwriting',
 });
 
 export const metadata: Metadata = {
@@ -25,7 +30,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${source_sans.variable} ${merriweather.variable}`}>
+    <html lang="en" className={`${source_sans.variable} ${merriweather.variable} ${caveat.variable}`}>
       <body className="antialiased">
         <QueryProvider>
           <AuthProvider>

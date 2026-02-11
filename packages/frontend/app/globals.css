@@ -10,6 +10,7 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
   --font-serif: var(--font-serif);
+  --font-handwriting: var(--font-handwriting);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -46,7 +47,9 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+  --radius-hand-drawn: 255px 15px 225px 15px / 15px 225px 15px 255px;
 }
+
 
 :root {
   --background: oklch(0.985 0.012 92.5);
@@ -129,8 +132,10 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
-    background-image: var(--app-gradient);
-    background-attachment: fixed;
+    background-color: #fdfbf7;
+    /* Simple lined paper background using CSS gradients - highly optimized */
+    background-image: linear-gradient(#e5e5e5 1px, transparent 1px);
+    background-size: 100% 2rem;
   }
   h1,
   h2,
