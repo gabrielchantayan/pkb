@@ -264,11 +264,13 @@ export async function run_frf_pipeline(): Promise<PipelineResult> {
 
               for (const followup of extraction.followups) {
                 try {
+                  const batch_timestamp = batch.batch_messages[0]?.timestamp;
                   const created = await create_content_detected_followup(
                     batch.contact_id,
                     batch.communication_ids[0],
                     followup.reason,
                     followup.suggested_date,
+                    batch_timestamp ? new Date(batch_timestamp) : undefined,
                   );
                   if (created) result.followups_created++;
                 } catch {
