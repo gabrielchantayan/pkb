@@ -183,7 +183,7 @@ func Load(path string) (*Config, error) {
 		cfg.Queue.ProcessIntervalSecs = 30
 	}
 	if cfg.Queue.BatchSize == 0 {
-		cfg.Queue.BatchSize = 10
+		cfg.Queue.BatchSize = 20
 	}
 
 	// Expand paths
