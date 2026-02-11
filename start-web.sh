@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -e
 
+# Clear the terminal
+clear && clear
+
 docker compose up -d db
 
 exec npx concurrently \
