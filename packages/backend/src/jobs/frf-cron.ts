@@ -355,13 +355,18 @@ export function start_frf_cron(): void {
     return;
   }
 
-  cron_task = cron.schedule(interval, () => {
+  const run = () => {
     run_frf_pipeline().catch((error) => {
       logger.error('FRF cron run failed', {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
     });
-  });
+  };
+
+  cron_task = cron.schedule(interval, run);
+
+  // Run immediately on startup, then continue on schedule
+  run();
 
   logger.info('FRF cron started', { interval });
 }
