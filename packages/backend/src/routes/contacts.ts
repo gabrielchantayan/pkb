@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { require_auth } from '../middleware/auth.js';
+import { query } from '../db/index.js';
 import { logger } from '../lib/logger.js';
 import {
   list_contacts,
@@ -63,6 +64,39 @@ router.get('/contacts/duplicates', require_auth, async (req, res) => {
     res.json({ duplicates });
   } catch (err) {
     logger.error('contacts/duplicates unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get processing status for a contact
+router.get('/contacts/:id/processing-status', require_auth, async (req, res) => {
+  try {
+    const param_result = uuid_param_schema.safeParse(req.params);
+    if (!param_result.success) {
+      res.status(400).json({ error: 'Invalid contact ID' });
+      return;
+    }
+
+    const result = await query<{ pending_count: string; last_processed: string | null }>(
+      `SELECT
+        COUNT(*) FILTER (WHERE frf_processed_at IS NULL) AS pending_count,
+        MAX(frf_processed_at)::text AS last_processed
+       FROM communications
+       WHERE contact_id = $1`,
+      [param_result.data.id]
+    );
+
+    const row = result.rows[0];
+    res.json({
+      pending_count: parseInt(row.pending_count, 10),
+      last_processed: row.last_processed,
+    });
+  } catch (err) {
+    logger.error('contacts/processing-status unexpected error', {
       request_id: req.request_id,
       error: String(err),
       stack: err instanceof Error ? err.stack : undefined,

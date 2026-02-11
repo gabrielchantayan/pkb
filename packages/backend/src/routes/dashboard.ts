@@ -8,7 +8,7 @@ const router = Router();
 router.get('/dashboard', require_auth, async (req, res) => {
   try {
     // Get stats in parallel
-    const [contacts_result, followups_result, communications_result, activity_result] =
+    const [contacts_result, followups_result, communications_result, activity_result, processing_result] =
       await Promise.all([
         query<{ count: string }>('SELECT COUNT(*) as count FROM contacts WHERE deleted_at IS NULL'),
         query<{ count: string }>(
@@ -41,6 +41,13 @@ router.get('/dashboard', require_auth, async (req, res) => {
           ORDER BY comm.timestamp DESC
           LIMIT 10
         `),
+        query<{ pending_count: string; last_processed: string | null }>(
+          `SELECT
+            COUNT(*) FILTER (WHERE frf_processed_at IS NULL) AS pending_count,
+            MAX(frf_processed_at)::text AS last_processed
+           FROM communications
+           WHERE contact_id IS NOT NULL`
+        ),
       ]);
 
     res.json({
@@ -48,6 +55,8 @@ router.get('/dashboard', require_auth, async (req, res) => {
         total_contacts: parseInt(contacts_result.rows[0].count, 10),
         pending_followups: parseInt(followups_result.rows[0].count, 10),
         recent_communications: parseInt(communications_result.rows[0].count, 10),
+        pending_extraction: parseInt(processing_result.rows[0].pending_count, 10),
+        last_extraction: processing_result.rows[0].last_processed,
       },
       recent_activity: activity_result.rows,
     });
