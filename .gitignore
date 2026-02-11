@@ -44,6 +44,7 @@ daemon/bin/
 .env.test.local
 .env.production.local
 .env*.local
+!.env.example
 *.pem
 *.key
 credentials.json
