@@ -1,6 +1,6 @@
-import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai';
-import { config } from '../../config.js';
-import { logger } from '../../lib/logger.js';
+import { GoogleGenerativeAI, GenerativeModel } from "@google/generative-ai";
+import { config } from "../../config.js";
+import { logger } from "../../lib/logger.js";
 
 let gen_ai: GoogleGenerativeAI | null = null;
 let flash_model: GenerativeModel | null = null;
@@ -8,7 +8,7 @@ let pro_model: GenerativeModel | null = null;
 
 function get_gen_ai(): GoogleGenerativeAI {
   if (!config.gemini_api_key) {
-    throw new Error('GEMINI_API_KEY environment variable is not set');
+    throw new Error("GEMINI_API_KEY environment variable is not set");
   }
 
   if (!gen_ai) {
@@ -21,7 +21,7 @@ function get_gen_ai(): GoogleGenerativeAI {
 function get_flash_model(): GenerativeModel {
   if (!flash_model) {
     flash_model = get_gen_ai().getGenerativeModel({
-      model: process.env.GEMINI_FLASH_MODEL || 'gemini-2.0-flash',
+      model: process.env.GEMINI_FLASH_MODEL || "gemini-2.5-flash",
     });
   }
   return flash_model;
@@ -30,7 +30,7 @@ function get_flash_model(): GenerativeModel {
 function get_pro_model(): GenerativeModel {
   if (!pro_model) {
     pro_model = get_gen_ai().getGenerativeModel({
-      model: process.env.GEMINI_PRO_MODEL || 'gemini-2.5-pro',
+      model: process.env.GEMINI_PRO_MODEL || "gemini-2.5-pro",
     });
   }
   return pro_model;
@@ -50,13 +50,14 @@ export async function generate_with_pro(prompt: string): Promise<string> {
 
 export async function generate_with_flash_json<T>(
   prompt: string,
-  response_schema: object
+  response_schema: object,
 ): Promise<T> {
   const model = get_gen_ai().getGenerativeModel({
-    model: process.env.GEMINI_FLASH_MODEL || 'gemini-2.0-flash',
+    model: process.env.GEMINI_FLASH_MODEL || "gemini-2.5-flash",
     generationConfig: {
-      responseMimeType: 'application/json',
-      responseSchema: response_schema as import('@google/generative-ai').ResponseSchema,
+      responseMimeType: "application/json",
+      responseSchema:
+        response_schema as import("@google/generative-ai").ResponseSchema,
     },
   });
 
@@ -65,29 +66,35 @@ export async function generate_with_flash_json<T>(
   return JSON.parse(text) as T;
 }
 
-export async function generate_embedding(text: string): Promise<number[] | null> {
+export async function generate_embedding(
+  text: string,
+): Promise<number[] | null> {
   try {
     const embedding_model = get_gen_ai().getGenerativeModel({
-      model: process.env.GEMINI_EMBEDDING_MODEL || 'text-embedding-004',
+      model: process.env.GEMINI_EMBEDDING_MODEL || "gemini-embedding-001",
     });
     const result = await embedding_model.embedContent(text);
     return result.embedding.values;
   } catch (error) {
-    logger.error('Embedding generation failed', {
-      error: error instanceof Error ? error.message : 'Unknown error',
+    logger.error("Embedding generation failed", {
+      error: error instanceof Error ? error.message : "Unknown error",
     });
     return null;
   }
 }
 
-export async function generate_embeddings(texts: string[]): Promise<(number[] | null)[]> {
+export async function generate_embeddings(
+  texts: string[],
+): Promise<(number[] | null)[]> {
   // Batch embedding - process in chunks to avoid rate limits
   const BATCH_SIZE = 10;
   const results: (number[] | null)[] = [];
 
   for (let i = 0; i < texts.length; i += BATCH_SIZE) {
     const batch = texts.slice(i, i + BATCH_SIZE);
-    const batch_results = await Promise.all(batch.map((t) => generate_embedding(t)));
+    const batch_results = await Promise.all(
+      batch.map((t) => generate_embedding(t)),
+    );
     results.push(...batch_results);
 
     // Rate limiting delay
@@ -100,7 +107,7 @@ export async function generate_embeddings(texts: string[]): Promise<(number[] | 
 }
 
 export function is_ai_available(): boolean {
-  if (process.env.AI_ENABLED === 'false') {
+  if (process.env.AI_ENABLED === "false") {
     return false;
   }
   return config.gemini_api_key !== null;
