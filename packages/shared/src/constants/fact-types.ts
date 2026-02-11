@@ -7,6 +7,12 @@ export const FACT_CATEGORIES: Record<FactType, FactCategory> = {
   company: 'basic_info',
   email: 'basic_info',
   phone: 'basic_info',
+  preference: 'preference',
+  tool: 'preference',
+  hobby: 'preference',
+  opinion: 'preference',
+  life_event: 'preference',
+  goal: 'preference',
   custom: 'custom',
 };
 
@@ -26,6 +32,12 @@ export const FACT_TYPE_LABELS: Record<FactType, string> = {
   company: 'Company',
   email: 'Email',
   phone: 'Phone',
+  preference: 'Preference',
+  tool: 'Tool',
+  hobby: 'Hobby',
+  opinion: 'Opinion',
+  life_event: 'Life Event',
+  goal: 'Goal',
   custom: 'Custom',
 };
 

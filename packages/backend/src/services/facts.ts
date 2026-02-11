@@ -20,6 +20,12 @@ const FACT_CATEGORIES: Record<string, string> = {
   company: 'basic_info',
   email: 'basic_info',
   phone: 'basic_info',
+  preference: 'preference',
+  tool: 'preference',
+  hobby: 'preference',
+  opinion: 'preference',
+  life_event: 'preference',
+  goal: 'preference',
   custom: 'custom',
 };
 

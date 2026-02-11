@@ -6,9 +6,15 @@ export type FactType =
   | 'company'
   | 'email'
   | 'phone'
+  | 'preference'
+  | 'tool'
+  | 'hobby'
+  | 'opinion'
+  | 'life_event'
+  | 'goal'
   | 'custom';
 
-export type FactSource = 'extracted' | 'manual';
+export type FactSource = 'extracted' | 'manual' | 'addressbook';
 
 export interface Fact {
   id: string;

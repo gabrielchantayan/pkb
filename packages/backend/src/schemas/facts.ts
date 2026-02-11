@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const fact_category_schema = z.enum(['basic_info', 'custom']);
+export const fact_category_schema = z.enum(['basic_info', 'preference', 'custom']);
 
 export const fact_type_schema = z.enum([
   'birthday',
@@ -9,10 +9,16 @@ export const fact_type_schema = z.enum([
   'company',
   'email',
   'phone',
+  'preference',
+  'tool',
+  'hobby',
+  'opinion',
+  'life_event',
+  'goal',
   'custom',
 ]);
 
-export const fact_source_schema = z.enum(['extracted', 'manual']);
+export const fact_source_schema = z.enum(['extracted', 'manual', 'addressbook']);
 
 // Structured value schemas for specific fact types
 export const birthday_structured_schema = z.object({
