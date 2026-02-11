@@ -2,15 +2,15 @@
 
 import { useDashboard } from '@/lib/hooks/use-dashboard';
 import { Card, CardContent } from '@/components/ui/card';
-import { Users, Bell, MessageSquare } from 'lucide-react';
+import { Users, Bell, MessageSquare, Cpu } from 'lucide-react';
 
 export function StatsCards() {
   const { data, isLoading } = useDashboard();
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {[1, 2, 3].map((i) => (
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map((i) => (
           <Card key={i}>
             <CardContent className="p-6">
               <div className="h-12 bg-muted animate-pulse rounded" />
@@ -40,10 +40,16 @@ export function StatsCards() {
       icon: MessageSquare,
       color: 'text-emerald-700',
     },
+    {
+      label: 'Pending Extraction',
+      value: data?.stats.pending_extraction ?? 0,
+      icon: Cpu,
+      color: 'text-violet-700',
+    },
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
       {stats.map((stat) => (
         <Card key={stat.label}>
           <CardContent className="p-6">

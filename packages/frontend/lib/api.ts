@@ -97,6 +97,8 @@ export interface DashboardData {
     total_contacts: number;
     pending_followups: number;
     recent_communications: number;
+    pending_extraction: number;
+    last_extraction: string | null;
   };
   recent_activity: Array<{
     id: string;
@@ -340,6 +342,10 @@ class ApiClient {
 
   delete_fact(id: string): Promise<void> {
     return this.fetch_json(`/api/facts/${id}`, { method: 'DELETE' });
+  }
+
+  get_processing_status(contact_id: string): Promise<{ pending_count: number; last_processed: string | null }> {
+    return this.fetch_json(`/api/contacts/${contact_id}/processing-status`);
   }
 
   // Notes

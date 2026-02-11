@@ -33,19 +33,15 @@ interface RelationshipsSectionProps {
 }
 
 const COMMON_LABELS = [
-  'spouse',
-  'child',
-  'parent',
-  'sibling',
-  'friend',
-  'colleague',
-  'boss',
-  'mentor',
-  'how_we_met',
+  'spouse', 'partner', 'child', 'parent', 'sibling',
+  'friend', 'colleague', 'boss', 'mentor', 'roommate',
+  'ex', 'client', 'neighbor', 'teacher', 'student',
+  'doctor', 'therapist', 'how_we_met',
 ];
 
 const LABEL_DISPLAY: Record<string, string> = {
   spouse: 'Spouse',
+  partner: 'Partner',
   child: 'Children',
   parent: 'Parents',
   sibling: 'Siblings',
@@ -53,6 +49,14 @@ const LABEL_DISPLAY: Record<string, string> = {
   colleague: 'Colleagues',
   boss: 'Boss',
   mentor: 'Mentors',
+  roommate: 'Roommates',
+  ex: 'Ex',
+  client: 'Clients',
+  neighbor: 'Neighbors',
+  teacher: 'Teachers',
+  student: 'Students',
+  doctor: 'Doctors',
+  therapist: 'Therapists',
   how_we_met: 'How We Met',
 };
 

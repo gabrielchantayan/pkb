@@ -28,15 +28,30 @@ interface FactsSectionProps {
   facts: Fact[];
 }
 
-const categories = [
-  'work',
-  'personal',
-  'family',
-  'education',
-  'interests',
-  'preferences',
-  'custom',
-];
+const FACT_TYPE_LABELS: Record<string, string> = {
+  birthday: 'Birthday',
+  location: 'Location',
+  job_title: 'Job Title',
+  company: 'Company',
+  email: 'Email',
+  phone: 'Phone',
+  preference: 'Preference',
+  tool: 'Tool',
+  hobby: 'Hobby',
+  opinion: 'Opinion',
+  life_event: 'Life Event',
+  goal: 'Goal',
+  custom: 'Custom',
+};
+
+const CATEGORY_LABELS: Record<string, string> = {
+  basic_info: 'Basic Info',
+  preference: 'Preferences & Interests',
+  custom: 'Custom',
+};
+
+// Order categories should appear
+const CATEGORY_ORDER = ['basic_info', 'preference', 'custom'];
 
 export function FactsSection({ contact_id, facts }: FactsSectionProps) {
   const [show_form, set_show_form] = useState(false);
@@ -63,18 +78,22 @@ export function FactsSection({ contact_id, facts }: FactsSectionProps) {
         />
       </CardHeader>
       <CardContent className="space-y-4">
-        {Object.entries(grouped).map(([category, category_facts]) => (
-          <div key={category}>
-            <h3 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
-              {category.replace('_', ' ')}
-            </h3>
-            <div className="space-y-1">
-              {category_facts.map((fact) => (
-                <FactItem key={fact.id} fact={fact} contact_id={contact_id} />
-              ))}
+        {CATEGORY_ORDER
+          .filter((cat) => grouped[cat]?.length > 0)
+          .concat(Object.keys(grouped).filter((k) => !CATEGORY_ORDER.includes(k)))
+          .filter((cat) => grouped[cat]?.length > 0)
+          .map((category) => (
+            <div key={category}>
+              <h3 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
+                {CATEGORY_LABELS[category] || category.replace('_', ' ')}
+              </h3>
+              <div className="space-y-1">
+                {grouped[category].map((fact) => (
+                  <FactItem key={fact.id} fact={fact} contact_id={contact_id} />
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
 
         {facts.length === 0 && (
           <p className="text-muted-foreground text-sm text-center py-4">
@@ -92,7 +111,7 @@ function FactItem({ fact, contact_id }: { fact: Fact; contact_id: string }) {
   return (
     <div className="flex items-center justify-between py-1.5 group">
       <div className="flex items-center gap-2 min-w-0">
-        <span className="text-sm font-medium">{fact.fact_type}:</span>
+        <span className="text-sm font-medium">{FACT_TYPE_LABELS[fact.fact_type] || fact.fact_type}:</span>
         <span className="text-sm truncate">{fact.value}</span>
         {fact.has_conflict && (
           <Badge variant="destructive" className="text-xs">
@@ -129,19 +148,17 @@ function AddFactDialog({
 }) {
   const [fact_type, set_fact_type] = useState('');
   const [value, set_value] = useState('');
-  const [category, set_category] = useState('custom');
   const { mutate: create_fact, isPending } = useCreateFact();
 
   function handle_submit(e: React.FormEvent) {
     e.preventDefault();
     create_fact(
-      { contact_id, fact_type, value, category },
+      { contact_id, fact_type, value },
       {
         onSuccess: () => {
           on_open_change(false);
           set_fact_type('');
           set_value('');
-          set_category('custom');
         },
       }
     );
@@ -158,12 +175,18 @@ function AddFactDialog({
         </DialogHeader>
         <form onSubmit={handle_submit} className="space-y-4">
           <div>
-            <Input
-              placeholder="Fact type (e.g., Birthday, Job Title)"
-              value={fact_type}
-              onChange={(e) => set_fact_type(e.target.value)}
-              required
-            />
+            <Select value={fact_type} onValueChange={(val) => val && set_fact_type(val)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Fact type" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(FACT_TYPE_LABELS).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <Input
@@ -172,20 +195,6 @@ function AddFactDialog({
               onChange={(e) => set_value(e.target.value)}
               required
             />
-          </div>
-          <div>
-            <Select value={category} onValueChange={(val) => val && set_category(val)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((cat) => (
-                  <SelectItem key={cat} value={cat}>
-                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => on_open_change(false)}>
