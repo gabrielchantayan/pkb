@@ -16,6 +16,9 @@ export function use_create_relationship() {
       api.create_relationship(data),
     onSuccess: (_, variables) => {
       query_client.invalidateQueries({ queryKey: ['relationships', variables.contact_id] });
+      if (variables.linked_contact_id) {
+        query_client.invalidateQueries({ queryKey: ['relationships', variables.linked_contact_id] });
+      }
     },
   });
 }
@@ -24,10 +27,18 @@ export function use_update_relationship() {
   const query_client = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, contact_id, ...data }: { id: string; contact_id: string; label?: string; person_name?: string; linked_contact_id?: string | null }) =>
-      api.update_relationship(id, data),
+    mutationFn: ({ id, contact_id, ...data }: { id: string; contact_id: string; linked_contact_id?: string | null; old_linked_contact_id?: string | null; label?: string; person_name?: string; source?: 'extracted' | 'manual' }) => {
+      const { old_linked_contact_id, ...update_data } = data;
+      return api.update_relationship(id, update_data);
+    },
     onSuccess: (_, variables) => {
       query_client.invalidateQueries({ queryKey: ['relationships', variables.contact_id] });
+      if (variables.linked_contact_id) {
+        query_client.invalidateQueries({ queryKey: ['relationships', variables.linked_contact_id] });
+      }
+      if (variables.old_linked_contact_id) {
+        query_client.invalidateQueries({ queryKey: ['relationships', variables.old_linked_contact_id] });
+      }
     },
   });
 }
@@ -36,10 +47,13 @@ export function use_delete_relationship() {
   const query_client = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id }: { id: string; contact_id: string }) =>
+    mutationFn: ({ id }: { id: string; contact_id: string; linked_contact_id?: string | null }) =>
       api.delete_relationship(id),
     onSuccess: (_, variables) => {
       query_client.invalidateQueries({ queryKey: ['relationships', variables.contact_id] });
+      if (variables.linked_contact_id) {
+        query_client.invalidateQueries({ queryKey: ['relationships', variables.linked_contact_id] });
+      }
     },
   });
 }

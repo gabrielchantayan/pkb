@@ -27,7 +27,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ContactPickerDialog } from '@/components/contacts/contact-picker-dialog';
-import { Plus, Pencil, Trash2, Sparkles, Link as LinkIcon } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Plus, Pencil, Trash2, Sparkles, Link as LinkIcon, ArrowRight } from 'lucide-react';
 
 interface RelationshipsSectionProps {
   contact_id: string;
@@ -35,9 +36,10 @@ interface RelationshipsSectionProps {
 
 const COMMON_LABELS = [
   'spouse', 'partner', 'child', 'parent', 'sibling',
-  'friend', 'colleague', 'boss', 'mentor', 'roommate',
-  'ex', 'client', 'neighbor', 'teacher', 'student',
-  'doctor', 'therapist', 'former_friend', 'how_we_met',
+  'friend', 'colleague', 'boss', 'direct_report', 'mentor', 'mentee',
+  'roommate', 'ex', 'client', 'provider', 'neighbor',
+  'teacher', 'student', 'doctor', 'patient', 'therapist',
+  'former_friend', 'how_we_met',
 ];
 
 const LABEL_DISPLAY: Record<string, string> = {
@@ -49,14 +51,18 @@ const LABEL_DISPLAY: Record<string, string> = {
   friend: 'Friends',
   colleague: 'Colleagues',
   boss: 'Boss',
+  direct_report: 'Direct Reports',
   mentor: 'Mentors',
+  mentee: 'Mentees',
   roommate: 'Roommates',
   ex: 'Ex',
   client: 'Clients',
+  provider: 'Providers',
   neighbor: 'Neighbors',
   teacher: 'Teachers',
   student: 'Students',
   doctor: 'Doctors',
+  patient: 'Patients',
   therapist: 'Therapists',
   former_friend: 'Former Friends',
   how_we_met: 'How We Met',
@@ -142,7 +148,19 @@ function RelationshipItem({
   contact_id: string;
   on_edit: () => void;
 }) {
-  const { mutate: delete_relationship, isPending } = use_delete_relationship();
+  const { mutate: delete_relationship, isPending: is_deleting } = use_delete_relationship();
+  const { mutate: update_relationship, isPending: is_linking } = use_update_relationship();
+
+  function handle_link_suggestion() {
+    if (!relationship.suggested_contact_id || !relationship.suggested_contact_name) return;
+    update_relationship({
+      id: relationship.id,
+      contact_id,
+      linked_contact_id: relationship.suggested_contact_id,
+      person_name: relationship.suggested_contact_name,
+      source: 'manual',
+    });
+  }
 
   return (
     <div className="flex items-center justify-between py-1.5 group">
@@ -163,6 +181,19 @@ function RelationshipItem({
             <Sparkles className="w-3 h-3 text-purple-500" />
           </span>
         )}
+        {!relationship.linked_contact_id && relationship.suggested_contact_id && (
+          <button
+            onClick={handle_link_suggestion}
+            disabled={is_linking}
+            className="inline-flex items-center gap-1 shrink-0"
+            title={`Link to ${relationship.suggested_contact_name}`}
+          >
+            <Badge variant="secondary" className="cursor-pointer hover:bg-secondary/85 text-xs gap-1">
+              {relationship.suggested_contact_name}
+              <ArrowRight className="w-3 h-3" />
+            </Badge>
+          </button>
+        )}
       </div>
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
         <Button size="icon-xs" variant="ghost" onClick={on_edit}>
@@ -171,8 +202,12 @@ function RelationshipItem({
         <Button
           size="icon-xs"
           variant="ghost"
-          onClick={() => delete_relationship({ id: relationship.id, contact_id })}
-          disabled={isPending}
+          onClick={() => delete_relationship({
+            id: relationship.id,
+            contact_id,
+            linked_contact_id: relationship.linked_contact_id,
+          })}
+          disabled={is_deleting}
         >
           <Trash2 className="w-3 h-3" />
         </Button>
@@ -251,6 +286,7 @@ function RelationshipDialog({
           label: effective_label,
           person_name,
           linked_contact_id: linked_contact_id ?? null,
+          old_linked_contact_id: relationship.linked_contact_id,
         },
         {
           onSuccess: () => {
