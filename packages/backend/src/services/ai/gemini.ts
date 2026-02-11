@@ -21,7 +21,7 @@ function get_gen_ai(): GoogleGenerativeAI {
 function get_flash_model(): GenerativeModel {
   if (!flash_model) {
     flash_model = get_gen_ai().getGenerativeModel({
-      model: process.env.GEMINI_FLASH_MODEL || 'gemini-2.5-flash',
+      model: process.env.GEMINI_FLASH_MODEL || 'gemini-2.0-flash',
     });
   }
   return flash_model;
@@ -46,6 +46,23 @@ export async function generate_with_pro(prompt: string): Promise<string> {
   const model = get_pro_model();
   const result = await model.generateContent(prompt);
   return result.response.text();
+}
+
+export async function generate_with_flash_json<T>(
+  prompt: string,
+  response_schema: object
+): Promise<T> {
+  const model = get_gen_ai().getGenerativeModel({
+    model: process.env.GEMINI_FLASH_MODEL || 'gemini-2.0-flash',
+    generationConfig: {
+      responseMimeType: 'application/json',
+      responseSchema: response_schema as import('@google/generative-ai').ResponseSchema,
+    },
+  });
+
+  const result = await model.generateContent(prompt);
+  const text = result.response.text();
+  return JSON.parse(text) as T;
 }
 
 export async function generate_embedding(text: string): Promise<number[] | null> {

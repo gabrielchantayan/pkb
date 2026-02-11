@@ -1,7 +1,8 @@
-import { generate_with_flash } from './gemini.js';
+import { generate_with_flash, generate_with_flash_json } from './gemini.js';
 import { create_extracted_fact, type ExtractedFactInput } from '../facts.js';
 import { create_extracted_relationship, type ExtractedRelationshipInput } from '../relationships.js';
 import { create_content_detected_followup } from '../followups.js';
+import { config } from '../../config.js';
 import { logger } from '../../lib/logger.js';
 
 const EXTRACTION_PROMPT = `
@@ -68,6 +69,129 @@ Respond with JSON only:
 Only include facts and relationships with confidence > 0.6. If none found, return empty arrays.
 `;
 
+const BATCH_EXTRACTION_PROMPT = `You are a meticulous personal knowledge base assistant. Your job is to extract meaningful personal facts, relationships, and follow-up items from a batch of messages about a specific contact.
+
+Contact name: {contact_name}
+
+## Quality Mandate
+
+Only extract MEANINGFUL personal details that would be worth remembering about this person long-term. Think: "Would I want to recall this about someone in a future conversation?"
+
+GOOD extractions (extract these):
+- "prefers olive oil over butter" → preference
+- "switched from Replit to Claude Code" → tool
+- "works at Meta (previously Google)" → company
+- "training for a marathon" → hobby
+- "wants to learn Rust" → goal
+- "has a daughter named Emma" → relationship
+- "just moved to Portland" → location
+- "birthday is March 15th" → birthday
+- "strongly believes in open source" → opinion
+- "got promoted to senior engineer" → life_event
+
+BAD extractions (do NOT extract these):
+- "went to the store" → mundane activity
+- "is running late" → transient state
+- "had lunch" → trivial daily activity
+- "said they're busy" → temporary status
+- "asked about the weather" → small talk
+- "sent a link" → not a personal fact
+
+It is completely fine and expected to return empty arrays if no meaningful facts, relationships, or follow-ups are found. Quality over quantity.
+
+## Fact Types
+
+Extract facts matching these types:
+- birthday: Date of birth (format value as "YYYY-MM-DD" or "Month Day" if year unknown)
+- location: Where they live (city, state, country)
+- job_title: Current job title or role
+- company: Current employer or organization
+- email: Email address mentioned
+- phone: Phone number mentioned
+- preference: Likes, dislikes, preferences (food, style, approach, etc.)
+- tool: Software, tools, technologies they use
+- hobby: Hobbies, sports, recreational activities
+- opinion: Strongly held views, beliefs, stances
+- life_event: Major life events (marriage, move, graduation, promotion, etc.)
+- goal: Aspirations, plans, things they want to achieve
+- custom: Anything notable that doesn't fit the above
+
+## Relationships
+
+Extract relationships using free-form labels. Common labels include: spouse, partner, child, parent, sibling, friend, colleague, boss, mentor, roommate, ex, client, neighbor, teacher, student, doctor, therapist, how_we_met — but use whatever label best describes the relationship.
+
+## Follow-ups
+
+Extract action items, promises, or things that need follow-through:
+- Promises made ("I'll send you...", "Let me check on that")
+- Meeting requests ("Let's catch up next week")
+- Deadlines ("by Friday", "before the end of the month")
+- Format suggested_date as YYYY-MM-DD (estimate if not explicit)
+
+## Source Awareness
+
+Messages may come from different sources (email, iMessage, WhatsApp, etc.). Email tends to be more formal with subjects; SMS/chat tends to be more casual. Adjust your confidence accordingly — casual mentions may warrant lower confidence.
+
+## Message Format
+
+Messages are provided in two sections:
+1. CONTEXT ONLY — Previously processed messages for background. Do NOT extract from these.
+2. NEW MESSAGES — Extract facts only from these messages. Context messages help you understand references.
+
+## Messages
+
+{formatted_prompt}`;
+
+const EXTRACTION_SCHEMA = {
+  type: 'object' as const,
+  properties: {
+    facts: {
+      type: 'array' as const,
+      items: {
+        type: 'object' as const,
+        properties: {
+          fact_type: {
+            type: 'string' as const,
+            enum: ['birthday', 'location', 'job_title', 'company', 'email', 'phone',
+                   'preference', 'tool', 'hobby', 'opinion', 'life_event', 'goal', 'custom'],
+          },
+          value: { type: 'string' as const },
+          structured_value: {
+            type: 'object' as const,
+            nullable: true,
+          },
+          confidence: { type: 'number' as const },
+        },
+        required: ['fact_type', 'value', 'confidence'],
+      },
+    },
+    relationships: {
+      type: 'array' as const,
+      items: {
+        type: 'object' as const,
+        properties: {
+          label: { type: 'string' as const },
+          person_name: { type: 'string' as const },
+          confidence: { type: 'number' as const },
+        },
+        required: ['label', 'person_name', 'confidence'],
+      },
+    },
+    followups: {
+      type: 'array' as const,
+      items: {
+        type: 'object' as const,
+        properties: {
+          reason: { type: 'string' as const },
+          suggested_date: { type: 'string' as const },
+        },
+        required: ['reason', 'suggested_date'],
+      },
+    },
+  },
+  required: ['facts', 'relationships', 'followups'],
+};
+
 export interface ExtractedFact {
   fact_type: string;
   value: string;
@@ -117,6 +241,34 @@ function parse_extraction_response(response: string): ExtractionResult {
   }
 }
 
+export async function extract_from_batch(
+  formatted_prompt: string,
+  contact_name: string,
+): Promise<ExtractionResult> {
+  const prompt = BATCH_EXTRACTION_PROMPT
+    .replace('{contact_name}', contact_name)
+    .replace('{formatted_prompt}', formatted_prompt);
+
+  try {
+    const result = await generate_with_flash_json<ExtractionResult>(prompt, EXTRACTION_SCHEMA);
+
+    // Filter by confidence threshold
+    const threshold = config.frf_confidence_threshold;
+    return {
+      facts: result.facts.filter((f) => f.confidence >= threshold),
+      relationships: result.relationships.filter((r) => r.confidence >= threshold),
+      followups: result.followups,
+    };
+  } catch (error) {
+    logger.error('Batch extraction failed', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      contact_name,
+    });
+    return { facts: [], relationships: [], followups: [] };
+  }
+}
+
+/** @deprecated Use extract_from_batch() for the new batch pipeline */
 export async function extract_from_text(
   content: string,
   contact_name: string,
@@ -138,6 +290,7 @@ export async function extract_from_text(
   }
 }
 
+/** @deprecated Will be removed after cron pipeline (WP-06) is active */
 export async function extract_from_communication(
   communication_id: string,
   content: string,
