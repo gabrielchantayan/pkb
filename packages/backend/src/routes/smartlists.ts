@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { require_auth } from '../middleware/auth.js';
+import { logger } from '../lib/logger.js';
 import {
   list_smart_lists,
   get_smart_list,
@@ -19,11 +20,16 @@ import {
 const router = Router();
 
 // List all smart lists
-router.get('/smartlists', require_auth, async (_req, res) => {
+router.get('/smartlists', require_auth, async (req, res) => {
   try {
     const smartLists = await list_smart_lists();
     res.json({ smartLists });
-  } catch {
+  } catch (err) {
+    logger.error('smartlists/list unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -33,6 +39,7 @@ router.get('/smartlists/:id', require_auth, async (req, res) => {
   try {
     const param_result = uuid_param_schema.safeParse(req.params);
     if (!param_result.success) {
+      logger.warn('smartlists/get validation failed', { request_id: req.request_id, issues: param_result.error.issues });
       res.status(400).json({ error: 'Invalid smart list ID' });
       return;
     }
@@ -44,7 +51,12 @@ router.get('/smartlists/:id', require_auth, async (req, res) => {
     }
 
     res.json({ smartList });
-  } catch {
+  } catch (err) {
+    logger.error('smartlists/get unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -54,23 +66,30 @@ router.get('/smartlists/:id/contacts', require_auth, async (req, res) => {
   try {
     const param_result = uuid_param_schema.safeParse(req.params);
     if (!param_result.success) {
+      logger.warn('smartlists/contacts validation failed', { request_id: req.request_id, issues: param_result.error.issues });
       res.status(400).json({ error: 'Invalid smart list ID' });
       return;
     }
 
     const query_result = smart_list_contacts_query_schema.safeParse(req.query);
     if (!query_result.success) {
+      logger.warn('smartlists/contacts query validation failed', { request_id: req.request_id, issues: query_result.error.issues });
       res.status(400).json({ error: 'Invalid query parameters', details: query_result.error.issues });
       return;
     }
 
     const result = await get_smart_list_contacts(param_result.data.id, query_result.data);
     res.json(result);
-  } catch (error) {
-    if (error instanceof NotFoundError) {
-      res.status(404).json({ error: error.message });
+  } catch (err) {
+    if (err instanceof NotFoundError) {
+      res.status(404).json({ error: err.message });
       return;
     }
+    logger.error('smartlists/contacts unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -80,13 +99,20 @@ router.post('/smartlists', require_auth, async (req, res) => {
   try {
     const body_result = create_smart_list_schema.safeParse(req.body);
     if (!body_result.success) {
+      logger.warn('smartlists/create validation failed', { request_id: req.request_id, issues: body_result.error.issues });
       res.status(400).json({ error: 'Invalid request body', details: body_result.error.issues });
       return;
     }
 
     const smartList = await create_smart_list(body_result.data);
+    logger.info('smart list created', { request_id: req.request_id, smart_list_id: smartList.id });
     res.status(201).json({ smartList });
-  } catch {
+  } catch (err) {
+    logger.error('smartlists/create unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -96,12 +122,14 @@ router.put('/smartlists/:id', require_auth, async (req, res) => {
   try {
     const param_result = uuid_param_schema.safeParse(req.params);
     if (!param_result.success) {
+      logger.warn('smartlists/update validation failed', { request_id: req.request_id, issues: param_result.error.issues });
       res.status(400).json({ error: 'Invalid smart list ID' });
       return;
     }
 
     const body_result = update_smart_list_schema.safeParse(req.body);
     if (!body_result.success) {
+      logger.warn('smartlists/update body validation failed', { request_id: req.request_id, issues: body_result.error.issues });
       res.status(400).json({ error: 'Invalid request body', details: body_result.error.issues });
       return;
     }
@@ -112,8 +140,14 @@ router.put('/smartlists/:id', require_auth, async (req, res) => {
       return;
     }
 
+    logger.info('smart list updated', { request_id: req.request_id, smart_list_id: param_result.data.id });
     res.json({ smartList });
-  } catch {
+  } catch (err) {
+    logger.error('smartlists/update unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -123,6 +157,7 @@ router.delete('/smartlists/:id', require_auth, async (req, res) => {
   try {
     const param_result = uuid_param_schema.safeParse(req.params);
     if (!param_result.success) {
+      logger.warn('smartlists/delete validation failed', { request_id: req.request_id, issues: param_result.error.issues });
       res.status(400).json({ error: 'Invalid smart list ID' });
       return;
     }
@@ -133,8 +168,14 @@ router.delete('/smartlists/:id', require_auth, async (req, res) => {
       return;
     }
 
+    logger.info('smart list deleted', { request_id: req.request_id, smart_list_id: param_result.data.id });
     res.json({ success: true });
-  } catch {
+  } catch (err) {
+    logger.error('smartlists/delete unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });

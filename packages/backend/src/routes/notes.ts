@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
+import { logger } from '../lib/logger.js';
 import { require_auth } from '../middleware/auth.js';
 import {
   list_notes,
@@ -36,13 +37,19 @@ router.get('/notes', require_auth, async (req, res) => {
   try {
     const query_result = list_notes_query_schema.safeParse(req.query);
     if (!query_result.success) {
+      logger.warn('notes/list validation failed', { request_id: req.request_id, issues: query_result.error.issues });
       res.status(400).json({ error: 'Invalid query parameters', details: query_result.error.issues });
       return;
     }
 
     const result = await list_notes(query_result.data);
     res.json(result);
-  } catch {
+  } catch (err) {
+    logger.error('notes/list unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -52,6 +59,7 @@ router.get('/notes/:id', require_auth, async (req, res) => {
   try {
     const param_result = uuid_param_schema.safeParse(req.params);
     if (!param_result.success) {
+      logger.warn('notes/get validation failed', { request_id: req.request_id, issues: param_result.error.issues });
       res.status(400).json({ error: 'Invalid note ID' });
       return;
     }
@@ -63,7 +71,12 @@ router.get('/notes/:id', require_auth, async (req, res) => {
     }
 
     res.json(note_detail);
-  } catch {
+  } catch (err) {
+    logger.error('notes/get unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -73,17 +86,24 @@ router.post('/notes', require_auth, async (req, res) => {
   try {
     const body_result = create_note_schema.safeParse(req.body);
     if (!body_result.success) {
+      logger.warn('notes/create validation failed', { request_id: req.request_id, issues: body_result.error.issues });
       res.status(400).json({ error: 'Invalid request body', details: body_result.error.issues });
       return;
     }
 
     const note = await create_note(body_result.data);
+    logger.info('note created', { request_id: req.request_id, note_id: note.id });
     res.status(201).json({ note });
-  } catch (error) {
-    if (error instanceof NotFoundError) {
-      res.status(404).json({ error: error.message });
+  } catch (err) {
+    if (err instanceof NotFoundError) {
+      res.status(404).json({ error: err.message });
       return;
     }
+    logger.error('notes/create unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -93,23 +113,31 @@ router.put('/notes/:id', require_auth, async (req, res) => {
   try {
     const param_result = uuid_param_schema.safeParse(req.params);
     if (!param_result.success) {
+      logger.warn('notes/update validation failed', { request_id: req.request_id, issues: param_result.error.issues });
       res.status(400).json({ error: 'Invalid note ID' });
       return;
     }
 
     const body_result = update_note_schema.safeParse(req.body);
     if (!body_result.success) {
+      logger.warn('notes/update body validation failed', { request_id: req.request_id, issues: body_result.error.issues });
       res.status(400).json({ error: 'Invalid request body', details: body_result.error.issues });
       return;
     }
 
     const note = await update_note(param_result.data.id, body_result.data);
+    logger.info('note updated', { request_id: req.request_id, note_id: param_result.data.id });
     res.json({ note });
-  } catch (error) {
-    if (error instanceof NotFoundError) {
-      res.status(404).json({ error: error.message });
+  } catch (err) {
+    if (err instanceof NotFoundError) {
+      res.status(404).json({ error: err.message });
       return;
     }
+    logger.error('notes/update unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -119,6 +147,7 @@ router.delete('/notes/:id', require_auth, async (req, res) => {
   try {
     const param_result = uuid_param_schema.safeParse(req.params);
     if (!param_result.success) {
+      logger.warn('notes/delete validation failed', { request_id: req.request_id, issues: param_result.error.issues });
       res.status(400).json({ error: 'Invalid note ID' });
       return;
     }
@@ -129,8 +158,14 @@ router.delete('/notes/:id', require_auth, async (req, res) => {
       return;
     }
 
+    logger.info('note deleted', { request_id: req.request_id, note_id: param_result.data.id });
     res.json({ success: true });
-  } catch {
+  } catch (err) {
+    logger.error('notes/delete unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -140,6 +175,7 @@ router.post('/notes/:id/attachments', require_auth, upload.single('file'), async
   try {
     const param_result = uuid_param_schema.safeParse(req.params);
     if (!param_result.success) {
+      logger.warn('notes/upload_attachment validation failed', { request_id: req.request_id, issues: param_result.error.issues });
       res.status(400).json({ error: 'Invalid note ID' });
       return;
     }
@@ -156,12 +192,18 @@ router.post('/notes/:id/attachments', require_auth, upload.single('file'), async
       buffer: req.file.buffer,
     });
 
+    logger.info('note attachment uploaded', { request_id: req.request_id, note_id: param_result.data.id });
     res.status(201).json({ attachment });
-  } catch (error) {
-    if (error instanceof NotFoundError) {
-      res.status(404).json({ error: error.message });
+  } catch (err) {
+    if (err instanceof NotFoundError) {
+      res.status(404).json({ error: err.message });
       return;
     }
+    logger.error('notes/upload_attachment unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -171,6 +213,7 @@ router.get('/notes/:id/attachments/:attachmentId', require_auth, async (req, res
   try {
     const param_result = attachment_param_schema.safeParse(req.params);
     if (!param_result.success) {
+      logger.warn('notes/get_attachment validation failed', { request_id: req.request_id, issues: param_result.error.issues });
       res.status(400).json({ error: 'Invalid parameters' });
       return;
     }
@@ -187,7 +230,12 @@ router.get('/notes/:id/attachments/:attachmentId', require_auth, async (req, res
       `attachment; filename="${encodeURIComponent(file_info.filename)}"`
     );
     res.sendFile(path.resolve(file_info.path));
-  } catch {
+  } catch (err) {
+    logger.error('notes/get_attachment unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -197,6 +245,7 @@ router.delete('/notes/:id/attachments/:attachmentId', require_auth, async (req, 
   try {
     const param_result = attachment_param_schema.safeParse(req.params);
     if (!param_result.success) {
+      logger.warn('notes/delete_attachment validation failed', { request_id: req.request_id, issues: param_result.error.issues });
       res.status(400).json({ error: 'Invalid parameters' });
       return;
     }
@@ -207,8 +256,14 @@ router.delete('/notes/:id/attachments/:attachmentId', require_auth, async (req, 
       return;
     }
 
+    logger.info('note attachment deleted', { request_id: req.request_id, note_id: param_result.data.id, attachment_id: param_result.data.attachmentId });
     res.json({ success: true });
-  } catch {
+  } catch (err) {
+    logger.error('notes/delete_attachment unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });

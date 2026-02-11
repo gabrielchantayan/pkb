@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { require_auth } from '../middleware/auth.js';
+import { logger } from '../lib/logger.js';
 import {
   list_contacts,
   get_contact,
@@ -34,23 +35,38 @@ router.get('/contacts', require_auth, async (req, res) => {
   try {
     const query_result = list_contacts_query_schema.safeParse(req.query);
     if (!query_result.success) {
+      logger.warn('contacts/list validation failed', {
+        request_id: req.request_id,
+        error_count: query_result.error.issues.length,
+        issues: query_result.error.issues.map(i => ({ path: i.path.join('.'), code: i.code, message: i.message })),
+      });
       res.status(400).json({ error: 'Invalid query parameters', details: query_result.error.issues });
       return;
     }
 
     const result = await list_contacts(query_result.data);
     res.json(result);
-  } catch {
+  } catch (err) {
+    logger.error('contacts/list unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 // Get duplicate suggestions
-router.get('/contacts/duplicates', require_auth, async (_req, res) => {
+router.get('/contacts/duplicates', require_auth, async (req, res) => {
   try {
     const duplicates = await find_duplicates();
     res.json({ duplicates });
-  } catch {
+  } catch (err) {
+    logger.error('contacts/duplicates unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -60,6 +76,11 @@ router.get('/contacts/:id', require_auth, async (req, res) => {
   try {
     const param_result = uuid_param_schema.safeParse(req.params);
     if (!param_result.success) {
+      logger.warn('contacts/get validation failed', {
+        request_id: req.request_id,
+        error_count: param_result.error.issues.length,
+        issues: param_result.error.issues.map(i => ({ path: i.path.join('.'), code: i.code, message: i.message })),
+      });
       res.status(400).json({ error: 'Invalid contact ID' });
       return;
     }
@@ -71,7 +92,12 @@ router.get('/contacts/:id', require_auth, async (req, res) => {
     }
 
     res.json(contact_detail);
-  } catch {
+  } catch (err) {
+    logger.error('contacts/get unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -81,13 +107,24 @@ router.post('/contacts', require_auth, async (req, res) => {
   try {
     const body_result = create_contact_schema.safeParse(req.body);
     if (!body_result.success) {
+      logger.warn('contacts/create validation failed', {
+        request_id: req.request_id,
+        error_count: body_result.error.issues.length,
+        issues: body_result.error.issues.map(i => ({ path: i.path.join('.'), code: i.code, message: i.message })),
+      });
       res.status(400).json({ error: 'Invalid request body', details: body_result.error.issues });
       return;
     }
 
     const contact = await create_contact(body_result.data);
+    logger.info('contact created', { request_id: req.request_id, contact_id: contact.id });
     res.status(201).json({ contact });
-  } catch {
+  } catch (err) {
+    logger.error('contacts/create unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -97,12 +134,22 @@ router.put('/contacts/:id', require_auth, async (req, res) => {
   try {
     const param_result = uuid_param_schema.safeParse(req.params);
     if (!param_result.success) {
+      logger.warn('contacts/update validation failed', {
+        request_id: req.request_id,
+        error_count: param_result.error.issues.length,
+        issues: param_result.error.issues.map(i => ({ path: i.path.join('.'), code: i.code, message: i.message })),
+      });
       res.status(400).json({ error: 'Invalid contact ID' });
       return;
     }
 
     const body_result = update_contact_schema.safeParse(req.body);
     if (!body_result.success) {
+      logger.warn('contacts/update validation failed', {
+        request_id: req.request_id,
+        error_count: body_result.error.issues.length,
+        issues: body_result.error.issues.map(i => ({ path: i.path.join('.'), code: i.code, message: i.message })),
+      });
       res.status(400).json({ error: 'Invalid request body', details: body_result.error.issues });
       return;
     }
@@ -113,8 +160,14 @@ router.put('/contacts/:id', require_auth, async (req, res) => {
       return;
     }
 
+    logger.info('contact updated', { request_id: req.request_id, contact_id: param_result.data.id });
     res.json({ contact });
-  } catch {
+  } catch (err) {
+    logger.error('contacts/update unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -124,6 +177,11 @@ router.delete('/contacts/:id', require_auth, async (req, res) => {
   try {
     const param_result = uuid_param_schema.safeParse(req.params);
     if (!param_result.success) {
+      logger.warn('contacts/delete validation failed', {
+        request_id: req.request_id,
+        error_count: param_result.error.issues.length,
+        issues: param_result.error.issues.map(i => ({ path: i.path.join('.'), code: i.code, message: i.message })),
+      });
       res.status(400).json({ error: 'Invalid contact ID' });
       return;
     }
@@ -134,8 +192,14 @@ router.delete('/contacts/:id', require_auth, async (req, res) => {
       return;
     }
 
+    logger.info('contact deleted', { request_id: req.request_id, contact_id: param_result.data.id });
     res.json({ success: true });
-  } catch {
+  } catch (err) {
+    logger.error('contacts/delete unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -145,12 +209,22 @@ router.post('/contacts/:id/star', require_auth, async (req, res) => {
   try {
     const param_result = uuid_param_schema.safeParse(req.params);
     if (!param_result.success) {
+      logger.warn('contacts/star validation failed', {
+        request_id: req.request_id,
+        error_count: param_result.error.issues.length,
+        issues: param_result.error.issues.map(i => ({ path: i.path.join('.'), code: i.code, message: i.message })),
+      });
       res.status(400).json({ error: 'Invalid contact ID' });
       return;
     }
 
     const body_result = star_contact_schema.safeParse(req.body);
     if (!body_result.success) {
+      logger.warn('contacts/star validation failed', {
+        request_id: req.request_id,
+        error_count: body_result.error.issues.length,
+        issues: body_result.error.issues.map(i => ({ path: i.path.join('.'), code: i.code, message: i.message })),
+      });
       res.status(400).json({ error: 'Invalid request body', details: body_result.error.issues });
       return;
     }
@@ -161,8 +235,14 @@ router.post('/contacts/:id/star', require_auth, async (req, res) => {
       return;
     }
 
+    logger.info('contact starred', { request_id: req.request_id, contact_id: param_result.data.id, starred: body_result.data.starred });
     res.json({ contact });
-  } catch {
+  } catch (err) {
+    logger.error('contacts/star unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -176,6 +256,15 @@ router.get('/contacts/:id/merge-preview/:sourceId', require_auth, async (req, re
     const source_id_result = uuid_param_schema.safeParse({ id: sourceId });
 
     if (!id_result.success || !source_id_result.success) {
+      const issues = [
+        ...(id_result.success ? [] : id_result.error.issues),
+        ...(source_id_result.success ? [] : source_id_result.error.issues),
+      ];
+      logger.warn('contacts/merge-preview validation failed', {
+        request_id: req.request_id,
+        error_count: issues.length,
+        issues: issues.map(i => ({ path: i.path.join('.'), code: i.code, message: i.message })),
+      });
       res.status(400).json({ error: 'Invalid contact ID' });
       return;
     }
@@ -192,7 +281,12 @@ router.get('/contacts/:id/merge-preview/:sourceId', require_auth, async (req, re
     }
 
     res.json(preview);
-  } catch {
+  } catch (err) {
+    logger.error('contacts/merge-preview unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -202,12 +296,22 @@ router.post('/contacts/:id/merge', require_auth, async (req, res) => {
   try {
     const param_result = uuid_param_schema.safeParse(req.params);
     if (!param_result.success) {
+      logger.warn('contacts/merge validation failed', {
+        request_id: req.request_id,
+        error_count: param_result.error.issues.length,
+        issues: param_result.error.issues.map(i => ({ path: i.path.join('.'), code: i.code, message: i.message })),
+      });
       res.status(400).json({ error: 'Invalid contact ID' });
       return;
     }
 
     const body_result = merge_contact_schema.safeParse(req.body);
     if (!body_result.success) {
+      logger.warn('contacts/merge validation failed', {
+        request_id: req.request_id,
+        error_count: body_result.error.issues.length,
+        issues: body_result.error.issues.map(i => ({ path: i.path.join('.'), code: i.code, message: i.message })),
+      });
       res.status(400).json({ error: 'Invalid request body', details: body_result.error.issues });
       return;
     }
@@ -223,8 +327,14 @@ router.post('/contacts/:id/merge', require_auth, async (req, res) => {
       return;
     }
 
+    logger.info('contacts merged', { request_id: req.request_id, target_id: param_result.data.id, source_id: body_result.data.mergeContactId });
     res.json({ contact });
-  } catch {
+  } catch (err) {
+    logger.error('contacts/merge unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -234,13 +344,23 @@ router.get('/contacts/:id/identifiers', require_auth, async (req, res) => {
   try {
     const param_result = uuid_param_schema.safeParse(req.params);
     if (!param_result.success) {
+      logger.warn('contacts/identifiers/list validation failed', {
+        request_id: req.request_id,
+        error_count: param_result.error.issues.length,
+        issues: param_result.error.issues.map(i => ({ path: i.path.join('.'), code: i.code, message: i.message })),
+      });
       res.status(400).json({ error: 'Invalid contact ID' });
       return;
     }
 
     const identifiers = await get_identifiers(param_result.data.id);
     res.json({ identifiers });
-  } catch {
+  } catch (err) {
+    logger.error('contacts/identifiers/list unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -250,12 +370,22 @@ router.post('/contacts/:id/identifiers', require_auth, async (req, res) => {
   try {
     const param_result = uuid_param_schema.safeParse(req.params);
     if (!param_result.success) {
+      logger.warn('contacts/identifiers/add validation failed', {
+        request_id: req.request_id,
+        error_count: param_result.error.issues.length,
+        issues: param_result.error.issues.map(i => ({ path: i.path.join('.'), code: i.code, message: i.message })),
+      });
       res.status(400).json({ error: 'Invalid contact ID' });
       return;
     }
 
     const body_result = add_identifier_schema.safeParse(req.body);
     if (!body_result.success) {
+      logger.warn('contacts/identifiers/add validation failed', {
+        request_id: req.request_id,
+        error_count: body_result.error.issues.length,
+        issues: body_result.error.issues.map(i => ({ path: i.path.join('.'), code: i.code, message: i.message })),
+      });
       res.status(400).json({ error: 'Invalid request body', details: body_result.error.issues });
       return;
     }
@@ -271,15 +401,21 @@ router.post('/contacts/:id/identifiers', require_auth, async (req, res) => {
       return;
     }
 
+    logger.info('identifier added', { request_id: req.request_id, contact_id: param_result.data.id });
     res.status(201).json({ identifier });
-  } catch (error) {
-    if (error instanceof IdentifierConflictError) {
+  } catch (err) {
+    if (err instanceof IdentifierConflictError) {
       res.status(409).json({
-        error: error.message,
-        existingContactId: error.existing_contact_id,
+        error: err.message,
+        existingContactId: err.existing_contact_id,
       });
       return;
     }
+    logger.error('contacts/identifiers/add unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -293,6 +429,15 @@ router.delete('/contacts/:id/identifiers/:identifierId', require_auth, async (re
     const identifier_id_result = uuid_param_schema.safeParse({ id: identifierId });
 
     if (!id_result.success || !identifier_id_result.success) {
+      const issues = [
+        ...(id_result.success ? [] : id_result.error.issues),
+        ...(identifier_id_result.success ? [] : identifier_id_result.error.issues),
+      ];
+      logger.warn('contacts/identifiers/remove validation failed', {
+        request_id: req.request_id,
+        error_count: issues.length,
+        issues: issues.map(i => ({ path: i.path.join('.'), code: i.code, message: i.message })),
+      });
       res.status(400).json({ error: 'Invalid ID' });
       return;
     }
@@ -303,8 +448,14 @@ router.delete('/contacts/:id/identifiers/:identifierId', require_auth, async (re
       return;
     }
 
+    logger.info('identifier removed', { request_id: req.request_id, contact_id: id_result.data.id, identifier_id: identifier_id_result.data.id });
     res.json({ success: true });
-  } catch {
+  } catch (err) {
+    logger.error('contacts/identifiers/remove unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });

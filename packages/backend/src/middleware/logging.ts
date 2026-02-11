@@ -24,6 +24,7 @@ export function logging_middleware(req: Request, res: Response, next: NextFuncti
       path: req.path,
       status: res.statusCode,
       duration_ms,
+      user_id: req.user_id,
     });
   });
 

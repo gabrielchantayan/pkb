@@ -5,7 +5,7 @@ import { logger } from '../lib/logger.js';
 
 const router = Router();
 
-router.get('/dashboard', require_auth, async (_req, res) => {
+router.get('/dashboard', require_auth, async (req, res) => {
   try {
     // Get stats in parallel
     const [contacts_result, followups_result, communications_result, activity_result] =
@@ -51,8 +51,12 @@ router.get('/dashboard', require_auth, async (_req, res) => {
       },
       recent_activity: activity_result.rows,
     });
-  } catch (error) {
-    logger.error('dashboard error', { error: error instanceof Error ? error.message : error });
+  } catch (err) {
+    logger.error('dashboard unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });

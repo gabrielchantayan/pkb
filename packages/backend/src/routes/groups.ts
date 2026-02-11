@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { require_auth } from '../middleware/auth.js';
+import { logger } from '../lib/logger.js';
 import {
   list_groups,
   get_group,
@@ -23,11 +24,16 @@ import {
 const router = Router();
 
 // List all groups (returns hierarchical tree)
-router.get('/groups', require_auth, async (_req, res) => {
+router.get('/groups', require_auth, async (req, res) => {
   try {
     const groups = await list_groups();
     res.json({ groups });
-  } catch {
+  } catch (err) {
+    logger.error('GROUP/LIST unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -37,6 +43,7 @@ router.get('/groups/:id', require_auth, async (req, res) => {
   try {
     const param_result = uuid_param_schema.safeParse(req.params);
     if (!param_result.success) {
+      logger.warn('GROUP/GET validation failed', { request_id: req.request_id, issues: param_result.error.issues });
       res.status(400).json({ error: 'Invalid group ID' });
       return;
     }
@@ -48,7 +55,12 @@ router.get('/groups/:id', require_auth, async (req, res) => {
     }
 
     res.json({ group });
-  } catch {
+  } catch (err) {
+    logger.error('GROUP/GET unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -58,21 +70,28 @@ router.post('/groups', require_auth, async (req, res) => {
   try {
     const body_result = create_group_schema.safeParse(req.body);
     if (!body_result.success) {
+      logger.warn('GROUP/CREATE validation failed', { request_id: req.request_id, issues: body_result.error.issues });
       res.status(400).json({ error: 'Invalid request body', details: body_result.error.issues });
       return;
     }
 
     const group = await create_group(body_result.data);
+    logger.info('group created', { request_id: req.request_id, group_id: group.id });
     res.status(201).json({ group });
-  } catch (error) {
-    if (error instanceof NotFoundError) {
-      res.status(404).json({ error: error.message });
+  } catch (err) {
+    if (err instanceof NotFoundError) {
+      res.status(404).json({ error: err.message });
       return;
     }
-    if (error instanceof ConflictError) {
-      res.status(409).json({ error: error.message });
+    if (err instanceof ConflictError) {
+      res.status(409).json({ error: err.message });
       return;
     }
+    logger.error('GROUP/CREATE unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -82,12 +101,14 @@ router.put('/groups/:id', require_auth, async (req, res) => {
   try {
     const param_result = uuid_param_schema.safeParse(req.params);
     if (!param_result.success) {
+      logger.warn('GROUP/UPDATE param validation failed', { request_id: req.request_id, issues: param_result.error.issues });
       res.status(400).json({ error: 'Invalid group ID' });
       return;
     }
 
     const body_result = update_group_schema.safeParse(req.body);
     if (!body_result.success) {
+      logger.warn('GROUP/UPDATE body validation failed', { request_id: req.request_id, issues: body_result.error.issues });
       res.status(400).json({ error: 'Invalid request body', details: body_result.error.issues });
       return;
     }
@@ -98,16 +119,22 @@ router.put('/groups/:id', require_auth, async (req, res) => {
       return;
     }
 
+    logger.info('group updated', { request_id: req.request_id, group_id: param_result.data.id });
     res.json({ group });
-  } catch (error) {
-    if (error instanceof NotFoundError) {
-      res.status(404).json({ error: error.message });
+  } catch (err) {
+    if (err instanceof NotFoundError) {
+      res.status(404).json({ error: err.message });
       return;
     }
-    if (error instanceof ConflictError) {
-      res.status(409).json({ error: error.message });
+    if (err instanceof ConflictError) {
+      res.status(409).json({ error: err.message });
       return;
     }
+    logger.error('GROUP/UPDATE unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -117,6 +144,7 @@ router.delete('/groups/:id', require_auth, async (req, res) => {
   try {
     const param_result = uuid_param_schema.safeParse(req.params);
     if (!param_result.success) {
+      logger.warn('GROUP/DELETE validation failed', { request_id: req.request_id, issues: param_result.error.issues });
       res.status(400).json({ error: 'Invalid group ID' });
       return;
     }
@@ -127,12 +155,18 @@ router.delete('/groups/:id', require_auth, async (req, res) => {
       return;
     }
 
+    logger.info('group deleted', { request_id: req.request_id, group_id: param_result.data.id });
     res.json({ success: true });
-  } catch (error) {
-    if (error instanceof ConflictError) {
-      res.status(409).json({ error: error.message });
+  } catch (err) {
+    if (err instanceof ConflictError) {
+      res.status(409).json({ error: err.message });
       return;
     }
+    logger.error('GROUP/DELETE unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -142,23 +176,31 @@ router.post('/contacts/:contactId/groups', require_auth, async (req, res) => {
   try {
     const param_result = contact_id_param_schema.safeParse(req.params);
     if (!param_result.success) {
+      logger.warn('GROUP/ADD_CONTACT param validation failed', { request_id: req.request_id, issues: param_result.error.issues });
       res.status(400).json({ error: 'Invalid contact ID' });
       return;
     }
 
     const body_result = add_contact_to_group_schema.safeParse(req.body);
     if (!body_result.success) {
+      logger.warn('GROUP/ADD_CONTACT body validation failed', { request_id: req.request_id, issues: body_result.error.issues });
       res.status(400).json({ error: 'Invalid request body', details: body_result.error.issues });
       return;
     }
 
     await add_contact_to_group(param_result.data.contactId, body_result.data.group_id);
+    logger.info('contact added to group', { request_id: req.request_id, contact_id: param_result.data.contactId, group_id: body_result.data.group_id });
     res.json({ success: true });
-  } catch (error) {
-    if (error instanceof NotFoundError) {
-      res.status(404).json({ error: error.message });
+  } catch (err) {
+    if (err instanceof NotFoundError) {
+      res.status(404).json({ error: err.message });
       return;
     }
+    logger.error('GROUP/ADD_CONTACT unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -168,6 +210,7 @@ router.delete('/contacts/:contactId/groups/:groupId', require_auth, async (req, 
   try {
     const param_result = contact_group_params_schema.safeParse(req.params);
     if (!param_result.success) {
+      logger.warn('GROUP/REMOVE_CONTACT validation failed', { request_id: req.request_id, issues: param_result.error.issues });
       res.status(400).json({ error: 'Invalid parameters' });
       return;
     }
@@ -178,8 +221,14 @@ router.delete('/contacts/:contactId/groups/:groupId', require_auth, async (req, 
       return;
     }
 
+    logger.info('contact removed from group', { request_id: req.request_id, contact_id: param_result.data.contactId, group_id: param_result.data.groupId });
     res.json({ success: true });
-  } catch {
+  } catch (err) {
+    logger.error('GROUP/REMOVE_CONTACT unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });

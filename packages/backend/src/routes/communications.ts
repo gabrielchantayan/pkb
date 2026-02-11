@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { createReadStream } from 'fs';
 import { stat } from 'fs/promises';
 import { require_auth } from '../middleware/auth.js';
+import { logger } from '../lib/logger.js';
 import {
   list_communications,
   get_communication,
@@ -21,13 +22,19 @@ router.get('/communications', require_auth, async (req, res) => {
   try {
     const query_result = list_communications_query_schema.safeParse(req.query);
     if (!query_result.success) {
+      logger.warn('communications/list validation failed', { request_id: req.request_id, issues: query_result.error.issues });
       res.status(400).json({ error: 'Invalid query parameters', details: query_result.error.issues });
       return;
     }
 
     const result = await list_communications(query_result.data);
     res.json(result);
-  } catch {
+  } catch (err) {
+    logger.error('communications/list unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -37,13 +44,19 @@ router.get('/communications/search', require_auth, async (req, res) => {
   try {
     const query_result = search_communications_query_schema.safeParse(req.query);
     if (!query_result.success) {
+      logger.warn('communications/search validation failed', { request_id: req.request_id, issues: query_result.error.issues });
       res.status(400).json({ error: 'Invalid query parameters', details: query_result.error.issues });
       return;
     }
 
     const result = await search_communications(query_result.data);
     res.json(result);
-  } catch {
+  } catch (err) {
+    logger.error('communications/search unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -53,6 +66,7 @@ router.get('/communications/:id', require_auth, async (req, res) => {
   try {
     const param_result = uuid_param_schema.safeParse(req.params);
     if (!param_result.success) {
+      logger.warn('communications/get validation failed', { request_id: req.request_id, issues: param_result.error.issues });
       res.status(400).json({ error: 'Invalid communication ID' });
       return;
     }
@@ -64,7 +78,12 @@ router.get('/communications/:id', require_auth, async (req, res) => {
     }
 
     res.json(result);
-  } catch {
+  } catch (err) {
+    logger.error('communications/get unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -74,6 +93,7 @@ router.get('/attachments/:id/download', require_auth, async (req, res) => {
   try {
     const param_result = uuid_param_schema.safeParse(req.params);
     if (!param_result.success) {
+      logger.warn('attachments/download validation failed', { request_id: req.request_id, issues: param_result.error.issues });
       res.status(400).json({ error: 'Invalid attachment ID' });
       return;
     }
@@ -105,7 +125,12 @@ router.get('/attachments/:id/download', require_auth, async (req, res) => {
 
     const stream = createReadStream(file_path);
     stream.pipe(res);
-  } catch {
+  } catch (err) {
+    logger.error('attachments/download unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });

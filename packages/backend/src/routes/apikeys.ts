@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { get_pool } from '../db/index.js';
 import { generate_api_key, hash_api_key } from '../lib/auth.js';
 import { require_session } from '../middleware/auth.js';
+import { logger } from '../lib/logger.js';
 
 const router = Router();
 
@@ -9,6 +10,7 @@ router.post('/auth/api-keys', require_session, async (req, res) => {
   const { name } = req.body;
 
   if (!name) {
+    logger.warn('apikeys/create validation failed', { request_id: req.request_id, reason: 'missing name' });
     res.status(400).json({ error: 'Name required' });
     return;
   }
@@ -23,9 +25,15 @@ router.post('/auth/api-keys', require_session, async (req, res) => {
       [name, key_hash]
     );
 
+    logger.info('api key created', { request_id: req.request_id, name });
     // Raw key is only returned once at creation time
     res.json({ api_key: raw_key, name });
-  } catch {
+  } catch (err) {
+    logger.error('apikeys/create unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -38,7 +46,12 @@ router.get('/auth/api-keys', require_session, async (req, res) => {
     );
 
     res.json({ api_keys: result.rows });
-  } catch {
+  } catch (err) {
+    logger.error('apikeys/list unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -58,8 +71,14 @@ router.delete('/auth/api-keys/:id', require_session, async (req, res) => {
       return;
     }
 
+    logger.info('api key deleted', { request_id: req.request_id, api_key_id: id });
     res.json({ success: true });
-  } catch {
+  } catch (err) {
+    logger.error('apikeys/delete unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });

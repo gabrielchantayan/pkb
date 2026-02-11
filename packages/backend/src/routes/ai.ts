@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { require_auth, require_api_key } from '../middleware/auth.js';
+import { logger } from '../lib/logger.js';
 import {
   extract_from_communication,
   answer_query,
@@ -32,6 +33,7 @@ router.post('/ai/extract', require_api_key, async (req, res) => {
   try {
     const body_result = extract_schema.safeParse(req.body);
     if (!body_result.success) {
+      logger.warn('ai/extract validation failed', { request_id: req.request_id, issues: body_result.error.issues });
       res.status(400).json({ error: 'Invalid request body', details: body_result.error.issues });
       return;
     }
@@ -67,6 +69,7 @@ router.post('/ai/extract', require_api_key, async (req, res) => {
       direction
     );
 
+    logger.info('ai extraction completed', { request_id: req.request_id, communication_id: body_result.data.communication_id });
     res.json({
       facts: result.facts.map((f) => ({
         id: f.id,
@@ -82,7 +85,12 @@ router.post('/ai/extract', require_api_key, async (req, res) => {
           due_date: f.due_date,
         })),
     });
-  } catch {
+  } catch (err) {
+    logger.error('ai/extract unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -92,6 +100,7 @@ router.post('/ai/query', require_auth, async (req, res) => {
   try {
     const body_result = query_schema.safeParse(req.body);
     if (!body_result.success) {
+      logger.warn('ai/query validation failed', { request_id: req.request_id, issues: body_result.error.issues });
       res.status(400).json({ error: 'Invalid request body', details: body_result.error.issues });
       return;
     }
@@ -102,8 +111,14 @@ router.post('/ai/query', require_auth, async (req, res) => {
     }
 
     const result = await answer_query(body_result.data.query, body_result.data.contact_id);
+    logger.info('ai query completed', { request_id: req.request_id });
     res.json(result);
-  } catch {
+  } catch (err) {
+    logger.error('ai/query unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -113,6 +128,7 @@ router.post('/ai/embed', require_api_key, async (req, res) => {
   try {
     const body_result = embed_schema.safeParse(req.body);
     if (!body_result.success) {
+      logger.warn('ai/embed validation failed', { request_id: req.request_id, issues: body_result.error.issues });
       res.status(400).json({ error: 'Invalid request body', details: body_result.error.issues });
       return;
     }
@@ -123,8 +139,14 @@ router.post('/ai/embed', require_api_key, async (req, res) => {
     }
 
     const result = await embed_batch(body_result.data);
+    logger.info('ai embed completed', { request_id: req.request_id });
     res.json(result);
-  } catch {
+  } catch (err) {
+    logger.error('ai/embed unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -134,6 +156,7 @@ router.post('/ai/backfill', require_auth, async (req, res) => {
   try {
     const body_result = backfill_schema.safeParse(req.body);
     if (!body_result.success) {
+      logger.warn('ai/backfill validation failed', { request_id: req.request_id, issues: body_result.error.issues });
       res.status(400).json({ error: 'Invalid request body', details: body_result.error.issues });
       return;
     }
@@ -144,8 +167,14 @@ router.post('/ai/backfill', require_auth, async (req, res) => {
     }
 
     const result = await backfill_embeddings(body_result.data.batch_size);
+    logger.info('ai backfill completed', { request_id: req.request_id });
     res.json(result);
-  } catch {
+  } catch (err) {
+    logger.error('ai/backfill unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });

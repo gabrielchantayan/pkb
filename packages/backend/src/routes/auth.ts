@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { get_pool } from '../db/index.js';
 import { verify_password, generate_session_token } from '../lib/auth.js';
 import { require_session } from '../middleware/auth.js';
+import { logger } from '../lib/logger.js';
 
 const router = Router();
 
@@ -11,6 +12,7 @@ router.post('/auth/login', async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
+    logger.warn('login failed: missing credentials', { request_id: req.request_id, has_email: !!email, has_password: !!password });
     res.status(400).json({ error: 'Email and password required' });
     return;
   }
@@ -23,6 +25,7 @@ router.post('/auth/login', async (req, res) => {
     );
 
     if (user_result.rows.length === 0) {
+      logger.warn('login failed: unknown user', { request_id: req.request_id, email });
       res.status(401).json({ error: 'Invalid credentials' });
       return;
     }
@@ -31,6 +34,7 @@ router.post('/auth/login', async (req, res) => {
     const valid = await verify_password(password, user.password_hash);
 
     if (!valid) {
+      logger.warn('login failed: bad password', { request_id: req.request_id, email });
       res.status(401).json({ error: 'Invalid credentials' });
       return;
     }
@@ -50,8 +54,14 @@ router.post('/auth/login', async (req, res) => {
       expires: expires_at,
     });
 
+    logger.info('login successful', { request_id: req.request_id, user_id: user.id, email: user.email });
     res.json({ user: { id: user.id, email: user.email } });
-  } catch {
+  } catch (err) {
+    logger.error('login unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -63,11 +73,16 @@ router.post('/auth/logout', require_session, async (req, res) => {
     try {
       const pool = get_pool();
       await pool.query('DELETE FROM sessions WHERE token = $1', [token]);
-    } catch {
-      // Ignore errors during logout
+    } catch (err) {
+      logger.error('logout: session cleanup error', {
+        request_id: req.request_id,
+        error: String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+      });
     }
   }
 
+  logger.info('logout', { request_id: req.request_id, user_id: req.user_id });
   res.clearCookie('session');
   res.json({ success: true });
 });
@@ -86,7 +101,12 @@ router.get('/auth/me', require_session, async (req, res) => {
     }
 
     res.json({ user: result.rows[0] });
-  } catch {
+  } catch (err) {
+    logger.error('auth/me unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { get_pool } from '../db/index.js';
 import { hash_api_key } from '../lib/auth.js';
+import { logger } from '../lib/logger.js';
 
 declare global {
   namespace Express {
@@ -14,6 +15,7 @@ export async function require_session(req: Request, res: Response, next: NextFun
   const token = req.cookies?.session || req.headers.authorization?.replace('Bearer ', '');
 
   if (!token) {
+    logger.warn('auth: missing session token', { request_id: req.request_id, path: req.path });
     res.status(401).json({ error: 'Unauthorized' });
     return;
   }
@@ -26,13 +28,19 @@ export async function require_session(req: Request, res: Response, next: NextFun
     );
 
     if (result.rows.length === 0) {
+      logger.warn('auth: invalid or expired session', { request_id: req.request_id, path: req.path });
       res.status(401).json({ error: 'Invalid or expired session' });
       return;
     }
 
     req.user_id = result.rows[0].user_id;
     next();
-  } catch {
+  } catch (err) {
+    logger.error('auth: session verification error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 }
@@ -41,6 +49,7 @@ export async function require_api_key(req: Request, res: Response, next: NextFun
   const api_key = req.headers['x-api-key'] as string | undefined;
 
   if (!api_key) {
+    logger.warn('auth: missing API key', { request_id: req.request_id, path: req.path });
     res.status(401).json({ error: 'API key required' });
     return;
   }
@@ -62,12 +71,18 @@ export async function require_api_key(req: Request, res: Response, next: NextFun
     );
 
     if (result.rows.length === 0) {
+      logger.warn('auth: invalid API key', { request_id: req.request_id, path: req.path });
       res.status(401).json({ error: 'Invalid API key' });
       return;
     }
 
     next();
-  } catch {
+  } catch (err) {
+    logger.error('auth: API key verification error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     res.status(500).json({ error: 'Internal server error' });
   }
 }
