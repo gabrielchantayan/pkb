@@ -6,9 +6,13 @@ import { config } from '../../config.js';
 import { logger } from '../../lib/logger.js';
 
 const EXTRACTION_PROMPT = `
-You are extracting facts about a person from a message. The message is from/to the contact.
+You are extracting facts about a person from a message.
 
-Extract any facts mentioned about the contact. Return JSON only.
+CRITICAL: Only extract facts about the CONTACT, not the user.
+- If direction is "inbound", the message is FROM the contact — first-person statements describe the contact.
+- If direction is "outbound", the message is FROM the user TO the contact — first-person statements describe the user, NOT the contact. Only extract facts that reveal something about the contact (e.g., "Happy birthday!" → contact's birthday).
+
+Return JSON only.
 
 Fact types to look for:
 - birthday (extract date if mentioned, format: YYYY-MM-DD)
@@ -128,6 +132,14 @@ Extract action items, promises, or things that need follow-through:
 - Deadlines ("by Friday", "before the end of the month")
 - Format suggested_date as YYYY-MM-DD (estimate if not explicit)
 
+## Attribution — CRITICAL
+
+You are building a knowledge base about the CONTACT, not about the user who owns this system.
+
+- RECEIVED messages are FROM the contact. First-person statements ("I got promoted", "my daughter") describe the CONTACT.
+- SENT messages are FROM the user TO the contact. First-person statements in SENT messages ("I just moved", "my wife") describe the USER, NOT the contact — do NOT extract these as facts about the contact.
+- Only extract facts from SENT messages when they reveal something about the CONTACT (e.g., "Happy birthday!", "Congrats on the new job" → the contact has a birthday/new job).
+
 ## Source Awareness
 
 Messages may come from different sources (email, iMessage, WhatsApp, etc.). Email tends to be more formal with subjects; SMS/chat tends to be more casual. Adjust your confidence accordingly — casual mentions may warrant lower confidence.
@@ -156,10 +168,6 @@ const EXTRACTION_SCHEMA = {
                    'preference', 'tool', 'hobby', 'opinion', 'life_event', 'goal', 'custom'],
           },
           value: { type: 'string' as const },
-          structured_value: {
-            type: 'object' as const,
-            nullable: true,
-          },
           confidence: { type: 'number' as const },
         },
         required: ['fact_type', 'value', 'confidence'],
