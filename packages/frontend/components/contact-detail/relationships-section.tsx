@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { Relationship } from '@/lib/api';
 import {
@@ -20,27 +20,33 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import {
-  Select,
-  SelectTrigger,
-  SelectContent,
-  SelectItem,
-  SelectValue,
-} from '@/components/ui/select';
+  Combobox,
+  ComboboxInput,
+  ComboboxContent,
+  ComboboxList,
+  ComboboxItem,
+  ComboboxGroup,
+  ComboboxLabel,
+  ComboboxEmpty,
+} from '@/components/ui/combobox';
 import { ContactPickerDialog } from '@/components/contacts/contact-picker-dialog';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Pencil, Trash2, Sparkles, Link as LinkIcon, ArrowRight } from 'lucide-react';
+import { Plus, Pencil, Trash2, Sparkles, Link as LinkIcon, ArrowRight, Check } from 'lucide-react';
 
 interface RelationshipsSectionProps {
   contact_id: string;
 }
 
-const COMMON_LABELS = [
-  'spouse', 'partner', 'child', 'parent', 'sibling',
-  'friend', 'colleague', 'boss', 'direct_report', 'mentor', 'mentee',
-  'roommate', 'ex', 'client', 'provider', 'neighbor',
-  'teacher', 'student', 'doctor', 'patient', 'therapist',
-  'former_friend', 'how_we_met',
-];
+const RELATIONSHIP_CATEGORIES: Record<string, string[]> = {
+  'Family': ['spouse', 'partner', 'child', 'parent', 'sibling'],
+  'Work': ['colleague', 'boss', 'direct_report', 'mentor', 'mentee', 'client', 'provider', 'professional_connection'],
+  'Social': ['friend', 'roommate', 'neighbor', 'ex', 'former_friend'],
+  'Medical': ['doctor', 'patient', 'therapist'],
+  'Education': ['teacher', 'student'],
+  'Other': ['how_we_met'],
+};
+
+const COMMON_LABELS = Object.values(RELATIONSHIP_CATEGORIES).flat();
 
 const LABEL_DISPLAY: Record<string, string> = {
   spouse: 'Spouse',
@@ -58,6 +64,7 @@ const LABEL_DISPLAY: Record<string, string> = {
   ex: 'Ex',
   client: 'Clients',
   provider: 'Providers',
+  professional_connection: 'Professional Connection',
   neighbor: 'Neighbors',
   teacher: 'Teachers',
   student: 'Students',
@@ -307,6 +314,31 @@ function RelationshipDialog({
       );
     }
   }
+  
+  const [inputValue, setInputValue] = useState('');
+
+  // Sort categories alphabetically
+  const sorted_categories = useMemo(() => {
+    return Object.keys(RELATIONSHIP_CATEGORIES).sort().map(category => ({
+      name: category,
+      items: RELATIONSHIP_CATEGORIES[category].sort((a, b) => 
+        format_label(a).localeCompare(format_label(b))
+      )
+    }));
+  }, []);
+
+  const filtered_categories = useMemo(() => {
+    if (!inputValue) return sorted_categories;
+    const lower = inputValue.toLowerCase();
+    
+    // Deep clone and filter
+    return sorted_categories.map(cat => ({
+      ...cat,
+      items: cat.items.filter(item => 
+        format_label(item).toLowerCase().includes(lower)
+      )
+    })).filter(cat => cat.items.length > 0);
+  }, [sorted_categories, inputValue]);
 
   return (
     <>
@@ -321,20 +353,45 @@ function RelationshipDialog({
             <DialogTitle>{is_edit ? 'Edit Relationship' : 'Add Relationship'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handle_submit} className="space-y-4">
-            <div>
-              <Select value={label} onValueChange={(val) => val && set_label(val)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Relationship type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {COMMON_LABELS.map((l) => (
-                    <SelectItem key={l} value={l}>
-                      {format_label(l)}
-                    </SelectItem>
-                  ))}
-                  <SelectItem value="custom">Custom...</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium">Relationship Type</label>
+              <Combobox
+                value={label ? { value: label, label: label === 'custom' ? 'Custom...' : format_label(label) } : null}
+                onValueChange={(val) => {
+                  if (typeof val === 'string') {
+                    set_label(val);
+                  } else if (val && typeof val === 'object' && 'value' in val) {
+                    set_label(val.value);
+                  }
+                }}
+                inputValue={inputValue}
+                onInputValueChange={setInputValue}
+              >
+                <ComboboxInput placeholder="Select relationship type..." />
+                <ComboboxContent>
+                  <ComboboxList>
+                    <ComboboxEmpty>No results found.</ComboboxEmpty>
+                    {filtered_categories.map((category) => (
+                      <ComboboxGroup key={category.name}>
+                        <ComboboxLabel>{category.name}</ComboboxLabel>
+                        {category.items.map((item) => (
+                          <ComboboxItem key={item} value={item}>
+                             {format_label(item)}
+                             {label === item && <Check className="ml-auto w-4 h-4" />}
+                          </ComboboxItem>
+                        ))}
+                      </ComboboxGroup>
+                    ))}
+                    <ComboboxGroup>
+                      <ComboboxLabel>Other</ComboboxLabel>
+                       <ComboboxItem value="custom">
+                         Custom...
+                         {label === 'custom' && <Check className="ml-auto w-4 h-4" />}
+                       </ComboboxItem>
+                    </ComboboxGroup>
+                  </ComboboxList>
+                </ComboboxContent>
+              </Combobox>
             </div>
             {label === 'custom' && (
               <div>
