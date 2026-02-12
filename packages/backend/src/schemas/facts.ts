@@ -81,6 +81,10 @@ export const batch_create_facts_schema = z.object({
   ),
 });
 
+export const bulk_delete_facts_schema = z.object({
+  ids: z.array(z.string().uuid()).min(1).max(500),
+});
+
 export const uuid_param_schema = z.object({
   id: z.string().uuid(),
 });
@@ -90,3 +94,4 @@ export type CreateFactInput = z.infer<typeof create_fact_schema>;
 export type UpdateFactInput = z.infer<typeof update_fact_schema>;
 export type ResolveConflictInput = z.infer<typeof resolve_conflict_schema>;
 export type BatchCreateFactsInput = z.infer<typeof batch_create_facts_schema>;
+export type BulkDeleteFactsInput = z.infer<typeof bulk_delete_facts_schema>;

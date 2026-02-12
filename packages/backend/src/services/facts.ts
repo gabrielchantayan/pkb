@@ -317,6 +317,17 @@ export async function delete_fact(id: string): Promise<boolean> {
   return result.rows.length > 0;
 }
 
+export async function bulk_delete_facts(ids: string[]): Promise<number> {
+  const result = await query(
+    `UPDATE facts SET deleted_at = NOW(), updated_at = NOW()
+     WHERE id = ANY($1) AND deleted_at IS NULL
+     RETURNING id`,
+    [ids]
+  );
+
+  return result.rowCount ?? 0;
+}
+
 export async function get_fact_history(id: string): Promise<FactHistory[]> {
   const result = await query<FactHistory>(
     'SELECT * FROM fact_history WHERE fact_id = $1 ORDER BY changed_at DESC',

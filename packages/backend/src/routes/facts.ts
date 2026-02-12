@@ -7,6 +7,7 @@ import {
   create_fact,
   update_fact,
   delete_fact,
+  bulk_delete_facts,
   get_fact_history,
   find_conflicts,
   resolve_conflict,
@@ -20,6 +21,7 @@ import {
   update_fact_schema,
   resolve_conflict_schema,
   batch_create_facts_schema,
+  bulk_delete_facts_schema,
   uuid_param_schema,
 } from '../schemas/facts.js';
 
@@ -58,6 +60,33 @@ router.get('/facts/conflicts', require_auth, async (req, res) => {
     res.json({ conflicts });
   } catch (err) {
     logger.error('facts/conflicts unexpected error', {
+      request_id: req.request_id,
+      error: String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Bulk delete facts (soft)
+router.delete('/facts/bulk', require_auth, async (req, res) => {
+  try {
+    const body_result = bulk_delete_facts_schema.safeParse(req.body);
+    if (!body_result.success) {
+      logger.warn('facts/bulk-delete validation failed', {
+        request_id: req.request_id,
+        error_count: body_result.error.issues.length,
+        issues: body_result.error.issues.map(i => ({ path: i.path.join('.'), code: i.code, message: i.message })),
+      });
+      res.status(400).json({ error: 'Invalid request body', details: body_result.error.issues });
+      return;
+    }
+
+    const deleted_count = await bulk_delete_facts(body_result.data.ids);
+    logger.info('facts bulk deleted', { request_id: req.request_id, requested: body_result.data.ids.length, deleted_count });
+    res.json({ deleted_count });
+  } catch (err) {
+    logger.error('facts/bulk-delete unexpected error', {
       request_id: req.request_id,
       error: String(err),
       stack: err instanceof Error ? err.stack : undefined,
