@@ -346,6 +346,13 @@ class ApiClient {
     return this.fetch_json(`/api/facts/${id}`, { method: 'DELETE' });
   }
 
+  bulk_delete_facts(ids: string[]): Promise<{ deleted_count: number }> {
+    return this.fetch_json('/api/facts/bulk', {
+      method: 'DELETE',
+      body: JSON.stringify({ ids }),
+    });
+  }
+
   get_processing_status(contact_id: string): Promise<{ pending_count: number; last_processed: string | null }> {
     return this.fetch_json(`/api/contacts/${contact_id}/processing-status`);
   }

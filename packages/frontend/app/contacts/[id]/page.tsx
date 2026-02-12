@@ -35,8 +35,6 @@ export default function ContactDetailPage() {
 
   const { contact, identifiers, facts, recent_communications, tags, groups } = data;
 
-  // Note: processing_status will be undefined until we add the backend endpoint
-
   return (
     <div className="space-y-6">
       <ContactHeader
@@ -49,7 +47,7 @@ export default function ContactDetailPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 space-y-6">
-          <FactsSection contact_id={contact.id} facts={facts} />
+          <FactsSection contact_id={contact.id} facts={facts} variant="sidebar" />
           <RelationshipsSection contact_id={contact.id} />
           <FollowupsSection contact_id={contact.id} />
         </div>
@@ -57,8 +55,9 @@ export default function ContactDetailPage() {
         <div className="lg:col-span-2">
           <Tabs defaultValue="timeline">
             <TabsList>
-              <TabsTrigger value="timeline">Timeline</TabsTrigger>
+              <TabsTrigger value="timeline">Comms</TabsTrigger>
               <TabsTrigger value="notes">Notes</TabsTrigger>
+              <TabsTrigger value="facts">Facts</TabsTrigger>
             </TabsList>
 
             <TabsContent value="timeline" className="mt-4">
@@ -67,6 +66,10 @@ export default function ContactDetailPage() {
 
             <TabsContent value="notes" className="mt-4">
               <NotesSection contact_id={contact.id} />
+            </TabsContent>
+
+            <TabsContent value="facts" className="mt-4">
+              <FactsSection contact_id={contact.id} facts={facts} variant="grid" />
             </TabsContent>
           </Tabs>
         </div>

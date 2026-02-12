@@ -24,3 +24,15 @@ export function useDeleteFact() {
     },
   });
 }
+
+export function useBulkDeleteFacts() {
+  const query_client = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ ids }: { ids: string[]; contact_id: string }) =>
+      api.bulk_delete_facts(ids),
+    onSuccess: (_, variables) => {
+      query_client.invalidateQueries({ queryKey: ['contact', variables.contact_id] });
+    },
+  });
+}
